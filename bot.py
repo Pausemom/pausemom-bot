@@ -11,10 +11,8 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 import asyncio
 
-# ===== ПОЛУЧАЕМ ТОКЕН =====
 API_TOKEN = os.getenv('BOT_TOKEN')
 
-# ===== ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ =====
 conn = sqlite3.connect('pause_bot.db', check_same_thread=False)
 cursor = conn.cursor()
 
@@ -38,11 +36,9 @@ bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
-# ===== СОСТОЯНИЯ =====
 class Form(StatesGroup):
     waiting_for_voice = State()
 
-# ===== КЛАВИАТУРЫ =====
 def main_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     keyboard.add(
@@ -51,32 +47,44 @@ def main_keyboard():
     )
     keyboard.add(
         KeyboardButton("📝 Сказать мягко"),
-        KeyboardButton("🎧 Аудио-сказка")
+        KeyboardButton("💎 Premium")
     )
     keyboard.add(
-        KeyboardButton("💎 Premium"),
-        KeyboardButton("👥 Пригласить подругу")
+        KeyboardButton("👥 Пригласить подругу"),
+        KeyboardButton("❤️ Поддержать проект")
     )
     keyboard.add(
-        KeyboardButton("❤️ Поддержать проект"),
         KeyboardButton("📞 Помощь")
     )
     return keyboard
 
 def sos_keyboard():
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     keyboard.add(
         KeyboardButton("🌬️ Дыхание 4-7-8"),
-        KeyboardButton("💧 Умыться водой"),
+        KeyboardButton("🧘 Осознанное дыхание")
+    )
+    keyboard.add(
+        KeyboardButton("👀 5-4-3-2-1"),
         KeyboardButton("🤗 Обнять себя")
     )
     keyboard.add(
-        KeyboardButton("🧘 Быстрая медитация"),
+        KeyboardButton("💧 Умыться водой"),
+        KeyboardButton("🦶 Стойка на ногах")
+    )
+    keyboard.add(
+        KeyboardButton("🧠 Сканирование тела"),
+        KeyboardButton("☀️ Луч света")
+    )
+    keyboard.add(
+        KeyboardButton("🌊 Волна дыхания"),
+        KeyboardButton("💭 Наблюдатель")
+    )
+    keyboard.add(
         KeyboardButton("🔙 Главное меню")
     )
     return keyboard
 
-# ===== ПРОВЕРКА ПРЕМИУМ =====
 def is_premium(user_id):
     cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
@@ -98,7 +106,6 @@ def generate_referral_code(user_id):
     conn.commit()
     return code
 
-# ===== СТАРТ =====
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     user_id = message.from_user.id
@@ -128,16 +135,15 @@ async def start(message: types.Message):
         "Я помогаю мамам сохранять спокойствие.\n\n"
         "⚡ **Как я работаю:**\n"
         "• Нажми «🆘 SOS-Пауза» когда закипаешь\n"
-        "• Я дам упражнения, чтобы успокоиться\n"
+        "• Я дам 10 упражнений осознанности, чтобы успокоиться\n"
         "• Используй «📝 Сказать мягко» для важных разговоров\n\n"
         f"👥 Твоя ссылка для подруг:\n"
         f"`https://t.me/{bot_username}?start={code}`\n\n"
         "💡 3 мягкие фразы в день бесплатно\n"
-        "💎 Premium (299 ₽/мес) — безлимит и аудио-сказки"
+        "💎 Premium (299 ₽/мес) — безлимитные фразы"
     )
     await message.answer(welcome_text, reply_markup=main_keyboard())
 
-# ===== SOS =====
 @dp.message_handler(lambda message: message.text == "🆘 SOS-Пауза")
 async def sos(message: types.Message):
     user_id = message.from_user.id
@@ -145,75 +151,208 @@ async def sos(message: types.Message):
     conn.commit()
     await message.answer(
         "⏳ **Стоп! Ты сделала главное — остановилась.**\n\n"
-        "Выбери, что поможет успокоиться:",
+        "Выбери упражнение осознанности, которое поможет успокоиться:",
         reply_markup=sos_keyboard()
     )
 
-# ===== ДЫХАНИЕ =====
+# ===== 10 MINDFULNESS-УПРАЖНЕНИЙ =====
+
+# 1. Дыхание 4-7-8
 @dp.message_handler(lambda message: message.text == "🌬️ Дыхание 4-7-8")
 async def breathe(message: types.Message):
     await message.answer(
-        "🌬️ **Дыхание 4-7-8**\n\n"
-        "1️⃣ Вдохни носом — 4 секунды\n"
-        "2️⃣ Задержи дыхание — 7 секунд\n"
-        "3️⃣ Выдохни ртом — 8 секунд\n\n"
-        "🔄 Повтори 5 раз"
+        "🌬️ **Дыхание 4-7-8** (техника доктора Вейля)\n\n"
+        "1️⃣ Вдохни носом — **4** секунды\n"
+        "2️⃣ Задержи дыхание — **7** секунд\n"
+        "3️⃣ Выдохни ртом — **8** секунд\n\n"
+        "🔄 Повтори **5 раз**.\n\n"
+        "✨ Это снижает уровень кортизола (гормона стресса).",
+        reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(5)
+    await asyncio.sleep(10)
     await message.answer(
         "✅ Ты справилась!\n\n"
-        "Ты — спокойная и любящая мама.",
+        "Ты вернула себе контроль. Теперь ты — спокойная и любящая мама.",
         reply_markup=main_keyboard()
     )
 
-# ===== УМЫТЬСЯ =====
-@dp.message_handler(lambda message: message.text == "💧 Умыться водой")
-async def wash(message: types.Message):
+# 2. Осознанное дыхание
+@dp.message_handler(lambda message: message.text == "🧘 Осознанное дыхание")
+async def mindful_breath(message: types.Message):
     await message.answer(
-        "🚰 **Встань и подойди к раковине.**\n\n"
-        "❄️ Умой лицо холодной водой 3 раза.\n"
-        "Это запускает рефлекс успокоения.",
-        reply_markup=main_keyboard()
+        "🧘 **Осознанное дыхание**\n\n"
+        "1️⃣ Сядь удобно, закрой глаза.\n"
+        "2️⃣ Сделай 3 глубоких вдоха и выдоха.\n"
+        "3️⃣ Теперь просто **наблюдай** за своим дыханием.\n"
+        "   • Вдох — я спокойна\n"
+        "   • Выдох — я отпускаю гнев\n"
+        "4️⃣ Продолжай 1 минуту.\n\n"
+        "✨ Это возвращает тебя в «здесь и сейчас».",
+        reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(5)
+    await asyncio.sleep(10)
     await message.answer(
-        "💧 Отлично!\n\n"
-        "Теперь скажи: «Я хорошая мама»",
+        "🕊️ Ты дышишь осознанно. Гнев уходит, спокойствие приходит.",
         reply_markup=main_keyboard()
     )
 
-# ===== ОБНЯТЬ СЕБЯ =====
+# 3. 5-4-3-2-1 (заземление)
+@dp.message_handler(lambda message: message.text == "👀 5-4-3-2-1")
+async def grounding(message: types.Message):
+    await message.answer(
+        "👀 **Упражнение «5-4-3-2-1»** (заземление)\n\n"
+        "Оглянись вокруг и найди:\n"
+        "5️⃣ **вещей**, которые ты видишь\n"
+        "4️⃣ **звука**, которые ты слышишь\n"
+        "3️⃣ **ощущения** на коже (ветер, тепло, ткань)\n"
+        "2️⃣ **запаха**, которые ты чувствуешь\n"
+        "1️⃣ **вкуса** во рту\n\n"
+        "✨ Это возвращает мозг в реальность.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🌿 Ты вернулась в реальность. Ты в безопасности.",
+        reply_markup=main_keyboard()
+    )
+
+# 4. Обнять себя (Бабочка)
 @dp.message_handler(lambda message: message.text == "🤗 Обнять себя")
 async def self_hug(message: types.Message):
     await message.answer(
         "🤗 **Техника «Бабочка»**\n\n"
-        "1. Скрести руки на груди\n"
-        "2. Похлопай себя по плечам\n"
-        "3. Продолжай 1 минуту",
-        reply_markup=main_keyboard()
+        "1️⃣ Скрести руки на груди\n"
+        "2️⃣ Положи ладони на плечи\n"
+        "3️⃣ Похлопай себя по плечам попеременно\n"
+        "4️⃣ Продолжай **1 минуту**\n\n"
+        "✨ Это успокаивает нервную систему.",
+        reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(5)
+    await asyncio.sleep(10)
     await message.answer(
         "🦋 Ты молодец! Нервная система успокоилась.",
         reply_markup=main_keyboard()
     )
 
-# ===== МЕДИТАЦИЯ =====
-@dp.message_handler(lambda message: message.text == "🧘 Быстрая медитация")
-async def quick_meditation(message: types.Message):
+# 5. Умыться водой
+@dp.message_handler(lambda message: message.text == "💧 Умыться водой")
+async def wash(message: types.Message):
     await message.answer(
-        "🧘 **Медитация «Здесь и сейчас»**\n\n"
-        "Сядь удобно, закрой глаза.\n"
-        "Сделай 3 глубоких вдоха.\n"
-        "Ответь себе:\n"
-        "• Что я слышу? (3 звука)\n"
-        "• Что я чувствую? (3 ощущения)",
+        "🚰 **Умывание холодной водой**\n\n"
+        "1️⃣ Встань и подойди к раковине\n"
+        "2️⃣ Умой лицо холодной водой **3 раза**\n"
+        "3️⃣ Почувствуй, как вода смывает гнев\n\n"
+        "✨ Это запускает «нырятельный рефлекс» — пульс замедляется.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "💧 Отлично! Теперь скажи: «Я хорошая мама»",
         reply_markup=main_keyboard()
     )
-    await asyncio.sleep(5)
+
+# 6. Стойка на ногах
+@dp.message_handler(lambda message: message.text == "🦶 Стойка на ногах")
+async def standing(message: types.Message):
     await message.answer(
-        "🧘 Ты вернулась в «здесь и сейчас».\n"
-        "Теперь ты готова действовать осознанно.",
+        "🦶 **Стойка на ногах** (заземление через тело)\n\n"
+        "1️⃣ Встань ровно, ноги на ширине плеч\n"
+        "2️⃣ Почувствуй, как ноги касаются пола\n"
+        "3️⃣ Начинай медленно переносить вес:\n"
+        "   • На пятки — **3 секунды**\n"
+        "   • На носки — **3 секунды**\n"
+        "   • На внешний край стоп — **3 секунды**\n"
+        "4️⃣ Повтори **5 раз**\n\n"
+        "✨ Это возвращает тебя в тело.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🦶 Ты снова ощущаешь своё тело. Спокойствие возвращается.",
+        reply_markup=main_keyboard()
+    )
+
+# 7. Сканирование тела
+@dp.message_handler(lambda message: message.text == "🧠 Сканирование тела")
+async def body_scan(message: types.Message):
+    await message.answer(
+        "🧠 **Сканирование тела**\n\n"
+        "Закрой глаза и почувствуй:\n"
+        "👣 **Стопы** — ощущаешь ли ты их?\n"
+        "🦵 **Ноги** — какие ощущения?\n"
+        "🤲 **Руки** — что чувствуют ладони?\n"
+        "🫀 **Грудь** — как бьётся сердце?\n"
+        "👤 **Лицо** — расслаблены ли мышцы?\n\n"
+        "✨ Это снимает напряжение.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🧠 Ты просканировала тело. Напряжение уходит.",
+        reply_markup=main_keyboard()
+    )
+
+# 8. Луч света
+@dp.message_handler(lambda message: message.text == "☀️ Луч света")
+async def light_beam(message: types.Message):
+    await message.answer(
+        "☀️ **Луч света** (визуализация)\n\n"
+        "1️⃣ Закрой глаза.\n"
+        "2️⃣ Представь **тёплый золотистый свет** над головой.\n"
+        "3️⃣ Этот свет медленно опускается:\n"
+        "   • на лицо — смывает напряжение\n"
+        "   • на плечи — снимает тяжесть\n"
+        "   • на грудь — наполняет спокойствием\n"
+        "   • на всё тело — наполняет теплом\n\n"
+        "4️⃣ Продолжай **1 минуту**\n\n"
+        "✨ Свет растворяет гнев.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "☀️ Ты наполнена светом и спокойствием.",
+        reply_markup=main_keyboard()
+    )
+
+# 9. Волна дыхания
+@dp.message_handler(lambda message: message.text == "🌊 Волна дыхания")
+async def wave_breath(message: types.Message):
+    await message.answer(
+        "🌊 **Волна дыхания**\n\n"
+        "Представь, что твоё дыхание — это волны океана:\n\n"
+        "🌊 **Вдох** — волна накатывает\n"
+        "   (наполняй живот воздухом)\n"
+        "🌊 **Выдох** — волна уходит\n"
+        "   (медленно отпускай воздух)\n\n"
+        "🔄 Повтори **5 раз** как волны океана\n\n"
+        "✨ Волны смывают гнев и тревогу.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🌊 Ты как океан — спокойная и глубокая.",
+        reply_markup=main_keyboard()
+    )
+
+# 10. Наблюдатель
+@dp.message_handler(lambda message: message.text == "💭 Наблюдатель")
+async def observer(message: types.Message):
+    await message.answer(
+        "💭 **Наблюдатель** (отстранение от эмоций)\n\n"
+        "1️⃣ Закрой глаза.\n"
+        "2️⃣ Представь, что ты смотришь на себя со стороны.\n"
+        "3️⃣ Ты видишь свою злость как **облако**.\n"
+        "4️⃣ Наблюдай за этим облаком:\n"
+        "   • Оно пришло\n"
+        "   • Оно здесь\n"
+        "   • Оно уходит\n\n"
+        "5️⃣ Ты не злость — ты просто **наблюдаешь** её.\n\n"
+        "✨ Ты отделяешь себя от эмоций.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "💭 Ты — наблюдатель. Ты не злость, ты — спокойствие.",
         reply_markup=main_keyboard()
     )
 
@@ -245,59 +384,115 @@ async def soft_phrase(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Form.waiting_for_voice)
 async def process_phrase(message: types.Message, state: FSMContext):
-    user_text = message.text
-
-    replacements = {
-        "убери": "давай уберем вместе",
-        "надоел": "я устала, мне нужна помощь",
-        "не делай": "давай попробуем по-другому",
-        "прекрати": "остановись, пожалуйста",
-        "идиот": "ты мой любимый ребенок",
-        "бесит": "меня это расстраивает"
-    }
-
-    soft_text = user_text
-    for harsh, kind in replacements.items():
-        if harsh in soft_text.lower():
-            soft_text = soft_text.lower().replace(harsh, kind)
-
-    if soft_text == user_text:
-        soft_text = f"«{user_text}». Давай найдем решение вместе."
-
+    user_text = message.text.lower()
+    
+    # ===== РАСШИРЕННАЯ БАЗА МЯГКИХ ФРАЗ (50+ ВАРИАНТОВ) =====
+    soft_phrases = [
+        # Для злых фраз (успокаивающие)
+        "Солнышко, я тебя очень люблю. Давай сделаем это вместе?",
+        "Мой хороший, мне нужна твоя помощь. Пожалуйста, помоги мне.",
+        "Давай остановимся и подышим. Я рядом с тобой.",
+        "Я устала, но я всё равно тебя люблю. Давай договоримся.",
+        "Ты мой самый важный человечек. Давай решим это спокойно.",
+        "Я знаю, что ты можешь меня услышать. Спасибо, что слушаешь.",
+        "Давай представим, что мы команда. Как мы можем это решить?",
+        "Я не злюсь на тебя, я просто хочу, чтобы мы поняли друг друга.",
+        "Ты очень важен для меня. Давай поговорим спокойно.",
+        "Мне нужно, чтобы ты меня услышал. Ты можешь это сделать для меня?",
+        "Я верю в тебя. Давай попробуем ещё раз, но по-другому.",
+        "Ты справишься, я знаю. И я рядом, чтобы помочь.",
+        "Давай сделаем паузу и начнём заново. Хорошо?",
+        "Я хочу понять тебя. Расскажи мне, что ты чувствуешь.",
+        "Ты не один. Мы вместе справимся с этим.",
+        "Я горжусь тобой. Давай найдём решение, которое устроит нас обоих.",
+        "Спасибо, что ты есть у меня. Давай договоримся по-хорошему.",
+        "Ты умный и добрый. Давай решим это мирно.",
+        "Я слушаю тебя. Расскажи, что ты хочешь сказать.",
+        "Мы справимся, потому что мы — семья. Давай обнимемся?",
+        "Я понимаю, что ты устал. Давай немного отдохнём и потом вернёмся к этому.",
+        "Ты научишься делать это правильно, я помогу тебе.",
+        "Мне важно, чтобы ты чувствовал себя в безопасности. Ты в безопасности со мной.",
+        "Давай не будем ссориться. Я хочу мира между нами.",
+        "Я люблю тебя даже когда ты ошибаешься. Давай исправим ошибки вместе.",
+        
+        # Для нейтральных фраз (поддерживающие)
+        "Давай найдём выход из этой ситуации. Я с тобой.",
+        "Ты можешь всё, я верю в тебя. Давай попробуем ещё раз.",
+        "Я рядом с тобой всегда. Ты не одна.",
+        "Ты уже многое умеешь. Давай научимся этому вместе.",
+        "Мы обязательно справимся, потому что мы вместе.",
+        "Ты удивительный человек. Я знаю, что у нас всё получится.",
+        "Помни: я люблю тебя любой. Даже когда мы ссоримся.",
+        "Давай сегодня попробуем быть добрее друг к другу.",
+        "Ты моя гордость. И я всегда буду рядом.",
+        "Всё будет хорошо, я рядом с тобой.",
+        "Ты очень многое умеешь. И это отлично!",
+        "Мы — лучшая команда. У нас всё получится.",
+        "Ты заслуживаешь только добра. Давай будем добрее.",
+        "Я люблю тебя больше всего на свете. Помни об этом.",
+        "Ты моё счастье. Давай беречь друг друга.",
+        "Мы вместе, а значит всё преодолеем.",
+        
+        # Для позитивных фраз (поощряющие)
+        "Ты такой молодец! Я горжусь тобой каждый день.",
+        "У тебя всё получается! Я вижу, как ты стараешься.",
+        "Ты очень добрый и внимательный. Спасибо тебе.",
+        "Как хорошо, что ты у меня есть! Ты мой подарок судьбы.",
+        "Ты делаешь этот мир лучше. Спасибо, что ты есть.",
+        "Я счастлива быть твоей мамой. Ты моя радость.",
+        "Ты очень талантливый! У тебя всё получится.",
+        "Мне нравится, как ты думаешь. Ты очень умный.",
+        "Ты — моё вдохновение. Спасибо за каждый день с тобой.",
+        "Ты замечательно справляешься! Я всегда рядом.",
+        "Твоя улыбка — моя самая большая награда.",
+        "Я люблю твои идеи. Ты креативный и весёлый!",
+        
+        # Для фраз о помощи и поддержке
+        "Давай сделаем это вместе. Я рядом.",
+        "Ты можешь попросить меня о помощи в любой момент.",
+        "Я здесь, чтобы поддержать тебя. Ты не один.",
+        "Вместе мы горы свернём. Я рядом всегда.",
+        "Ты всегда можешь рассчитывать на меня. Я люблю тебя."
+    ]
+    
+    # ===== ОПРЕДЕЛЯЕМ СИТУАЦИЮ ПО КЛЮЧЕВЫМ СЛОВАМ =====
+    negative_words = ["убери", "надоел", "прекрати", "не делай", "идиот", "бесит", "тупой", 
+                     "заткнись", "уйди", "опять", "сколько можно", "дурак", "лентяй", 
+                     "бездарь", "кошмар", "ужас", "сделай", "быстро", "немедленно", "сейчас",
+                     "бесишь", "раздражаешь", "злишь", "надоело", "достал", "замучил"]
+    
+    positive_words = ["люблю", "хорошо", "молодец", "спасибо", "отлично", "помоги", 
+                     "пожалуйста", "вместе", "дружно", "мирно", "добрый", "умный",
+                     "замечательно", "прекрасно", "радость", "счастье", "горжусь"]
+    
+    help_words = ["помощь", "помоги", "поддержка", "поддержи", "сложно", "трудно", "не справляюсь"]
+    
+    # Проверяем категории
+    has_negative = any(word in user_text for word in negative_words)
+    has_positive = any(word in user_text for word in positive_words)
+    needs_help = any(word in user_text for word in help_words)
+    
+    # Выбираем подходящую фразу и объяснение
+    if has_negative:
+        selected = random.choice(soft_phrases[:25])
+        explanation = "🌿 Я переделала твою злую фразу в мягкую и добрую. Попробуй сказать так:"
+    elif needs_help:
+        selected = random.choice(soft_phrases[25:35])
+        explanation = "🫂 Я слышу, что тебе нужна поддержка. Скажи так, и ребёнок тебя поймёт:"
+    elif has_positive:
+        selected = random.choice(soft_phrases[35:47])
+        explanation = "🌟 Ты уже говоришь с любовью! Вот ещё более мягкий вариант:"
+    else:
+        selected = random.choice(soft_phrases[47:])
+        explanation = "💡 Я подобрала для тебя добрую фразу. Скажи так, и ребёнок тебя услышит:"
+    
     await message.answer(
-        f"💡 **Попробуй сказать так:**\n\n"
-        f"«{soft_text.capitalize()}»\n\n"
-        f"✅ Ребенок услышит тебя, а не испугается.",
-        reply_markup=main_keyboard()
+        f"{explanation}\n\n"
+        f"«{selected}»\n\n"
+        f"✅ Эта фраза звучит мягко и с любовью.\n"
+        f"📋 Скопируй и скажи своему ребёнку."
     )
     await state.finish()
-
-# ===== АУДИО-СКАЗКА =====
-@dp.message_handler(lambda message: message.text == "🎧 Аудио-сказка")
-async def audio_fairy_tale(message: types.Message):
-    user_id = message.from_user.id
-
-    if not is_premium(user_id):
-        await message.answer(
-            "🔒 **Аудио-сказки доступны только по Premium.**\n\n"
-            "💰 299 ₽/мес — нажми «💎 Premium»",
-            reply_markup=main_keyboard()
-        )
-        return
-
-    tales = [
-        ("🌊 Сказка о морской звезде", "https://disk.yandex.ru/d/tale1"),
-        ("🌲 Лесная медитация", "https://disk.yandex.ru/d/tale2")
-    ]
-
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    for name, url in tales:
-        keyboard.add(InlineKeyboardButton(name, url=url))
-
-    await message.answer(
-        "🎧 **Выбери аудио-сказку:**",
-        reply_markup=keyboard
-    )
 
 # ===== СТАТИСТИКА =====
 @dp.message_handler(lambda message: message.text == "📊 Моя статистика")
@@ -335,8 +530,7 @@ async def premium_info(message: types.Message):
         "💎 **Premium — 299 ₽/мес**\n\n"
         "✨ Что ты получаешь:\n"
         "✅ Безлимитные мягкие фразы\n"
-        "✅ 5+ аудио-сказок\n"
-        "✅ Голосовые упражнения\n\n"
+        "✅ Ранний доступ к новым функциям\n\n"
         "📲 Оплати: https://pay.cloudtips.ru/p/12345\n"
         "Напиши код из 6 цифр",
         reply_markup=main_keyboard()
@@ -400,7 +594,6 @@ async def handle_payment_code(message: types.Message):
                 reply_markup=main_keyboard()
             )
 
-# ===== ЗАПУСК =====
 if __name__ == '__main__':
     from aiogram import executor
     executor.start_polling(dp, skip_updates=True)
