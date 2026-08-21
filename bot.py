@@ -56,7 +56,7 @@ def main_keyboard():
     )
     keyboard.add(
         KeyboardButton("🌅 Аффирмация дня"),
-        KeyboardButton("👩‍⚕️ Советы психолога")
+        KeyboardButton("📚 Общие рекомендации по возрасту")
     )
     keyboard.add(
         KeyboardButton("📞 Помощь")
@@ -483,17 +483,20 @@ def get_daily_affirmation():
         day_of_year -= 1
     return affirmations[day_of_year - 1]
 
-# ===== СОВЕТЫ ПСИХОЛОГА =====
+# ===== ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ =====
 def get_age_keyboard():
-    keyboard = InlineKeyboardMarkup(row_width=3)
+    keyboard = InlineKeyboardMarkup(row_width=2)
     keyboard.add(
         InlineKeyboardButton("👶 1-3 года", callback_data="age_1_3"),
-        InlineKeyboardButton("🧒 4-6 лет", callback_data="age_4_6"),
-        InlineKeyboardButton("👦 7-10 лет", callback_data="age_7_10")
+        InlineKeyboardButton("🧒 4-6 лет", callback_data="age_4_6")
     )
     keyboard.add(
-        InlineKeyboardButton("👧 11-14 лет", callback_data="age_11_14"),
-        InlineKeyboardButton("🧑 15-18 лет", callback_data="age_15_18")
+        InlineKeyboardButton("👦 7-10 лет", callback_data="age_7_10"),
+        InlineKeyboardButton("👧 11-14 лет", callback_data="age_11_14")
+    )
+    keyboard.add(
+        InlineKeyboardButton("🧑 15-18 лет", callback_data="age_15_18"),
+        InlineKeyboardButton("👩 18+ лет", callback_data="age_18_plus")
     )
     keyboard.add(
         InlineKeyboardButton("📚 Общие рекомендации", callback_data="age_general")
@@ -562,6 +565,23 @@ def get_advice_by_age(age_group):
                 "❤️ **Будьте рядом**. Даже когда кажется, что ребёнок не нуждается в вас, он всё равно ждёт вашей любви."
             ]
         },
+        "age_18_plus": {
+            "title": "👩 Взрослые дети (18+ лет)",
+            "tips": [
+                "🤝 **Отношения на равных**. Ваш ребёнок — взрослый человек. Уважайте его право на собственный путь.",
+                "🗣️ **Советуйте, но не навязывайте**. Давайте рекомендации только когда вас просят.",
+                "🫂 **Будьте опорой**, но не спасателем. Позволяйте взрослому ребёнку справляться с трудностями самому.",
+                "💕 **Принимайте выборы ребёнка**, даже если они не совпадают с вашими ожиданиями.",
+                "📱 **Не вмешивайтесь в личную жизнь**. Уважайте границы: не требуйте отчётов и не критикуйте партнёров.",
+                "💰 **Финансовая поддержка** должна быть разумной и постепенно уменьшаться. Учите самостоятельности.",
+                "👂 **Слушайте без осуждения**. Взрослый ребёнок ценит возможность выговориться без страха быть осуждённым.",
+                "💝 **Продолжайте проявлять любовь**, но без инфантилизации. «Я горжусь тобой» — лучше, чем «Ты мой маленький».",
+                "🔄 **Пересмотрите роль «родитель»**. Вы становитесь наставником, другом и мудрым советчиком.",
+                "🙏 **Прощайте ошибки** и отпускайте обиды. Взрослые отношения строятся на взаимном уважении.",
+                "💬 **Учитесь диалогу**. Вместо монологов «я тебя учила» — спрашивайте «как ты к этому пришёл?».",
+                "🌟 **Радуйтесь его/её успехам** как своим. Ваша гордость — лучшая поддержка."
+            ]
+        },
         "age_general": {
             "title": "📚 Общие рекомендации для всех возрастов",
             "tips": [
@@ -611,13 +631,15 @@ async def start(message: types.Message):
         "• Я дам 10 упражнений осознанности, чтобы успокоиться\n"
         "• Используй «📝 Сказать мягко» для важных разговоров\n"
         "• Получай «🌅 Аффирмацию дня» для поддержки себя\n"
-        "• Узнай «👩‍⚕️ Советы психолога» для любого возраста\n\n"
+        "• Узнай «📚 Общие рекомендации по возрасту» для любого возраста (включая 18+)\n\n"
         f"👥 Твоя ссылка для подруг:\n"
         f"`https://t.me/{bot_username}?start={code}`\n\n"
         "💡 3 мягкие фразы в день бесплатно\n"
         "💎 Premium (299 ₽/мес) — безлимитные фразы"
     )
     await message.answer(welcome_text, reply_markup=main_keyboard())
+
+# ===== SOS-ПАУЗА =====
 
 @dp.message_handler(lambda message: message.text == "🆘 SOS-Пауза")
 async def sos(message: types.Message):
@@ -1038,12 +1060,12 @@ async def daily_affirmation(message: types.Message):
             reply_markup=main_keyboard()
         )
 
-# ===== СОВЕТЫ ПСИХОЛОГА =====
+# ===== ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ =====
 
-@dp.message_handler(lambda message: message.text == "👩‍⚕️ Советы психолога")
-async def psychologist_advice(message: types.Message):
+@dp.message_handler(lambda message: message.text == "📚 Общие рекомендации по возрасту")
+async def age_recommendations(message: types.Message):
     await message.answer(
-        "👩‍⚕️ **Советы психолога для родителей**\n\n"
+        "📚 **Общие рекомендации по возрасту**\n\n"
         "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
         reply_markup=get_age_keyboard()
     )
@@ -1056,7 +1078,7 @@ async def process_age_choice(callback_query: types.CallbackQuery):
     tips_text = "\n\n".join(advice_data["tips"])
     
     await callback_query.message.edit_text(
-        f"👩‍⚕️ **{advice_data['title']}**\n\n"
+        f"📚 **{advice_data['title']}**\n\n"
         f"{tips_text}\n\n"
         f"💡 Помни: каждый ребёнок уникален. Эти рекомендации — ориентир, а не строгие правила.\n\n"
         f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
@@ -1069,7 +1091,7 @@ async def process_age_choice(callback_query: types.CallbackQuery):
 @dp.callback_query_handler(lambda c: c.data == "back_to_ages")
 async def back_to_ages(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(
-        "👩‍⚕️ **Советы психолога для родителей**\n\n"
+        "📚 **Общие рекомендации по возрасту**\n\n"
         "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
         reply_markup=get_age_keyboard()
     )
@@ -1153,13 +1175,20 @@ async def donate(message: types.Message):
 
 @dp.message_handler(lambda message: message.text == "📞 Помощь")
 async def help_menu(message: types.Message):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        InlineKeyboardButton("💬 Написать в поддержку", url="https://t.me/PauseMomSupport_bot")
+    )
+    
     await message.answer(
         "📞 **Помощь**\n\n"
-        "❓ Частые вопросы:\n"
+        "❓ **Частые вопросы:**\n"
         "• Как оплатить Premium? → Нажми «💎 Premium»\n"
-        "• Не приходит код? → Напиши поддержке\n\n"
-        "📱 Поддержка: @PauseMomSupport",
-        reply_markup=main_keyboard()
+        "• Не приходит код? → Напиши поддержке\n"
+        "• Хочешь предложить идею? → Мы открыты!\n\n"
+        "🕐 Мы отвечаем в течение 24 часов.\n"
+        "💝 Спасибо, что ты с нами!",
+        reply_markup=keyboard
     )
 
 # ===== НАЗАД =====
