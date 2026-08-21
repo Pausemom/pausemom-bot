@@ -56,6 +56,9 @@ def main_keyboard():
     )
     keyboard.add(
         KeyboardButton("🌅 Аффирмация дня"),
+        KeyboardButton("👩‍⚕️ Советы психолога")
+    )
+    keyboard.add(
         KeyboardButton("📞 Помощь")
     )
     return keyboard
@@ -111,7 +114,6 @@ def generate_referral_code(user_id):
 # ===== 365 АФФИРМАЦИЙ =====
 def get_daily_affirmation():
     affirmations = [
-        # Январь (1-31)
         "Я — хорошая мама, и я делаю всё, что в моих силах.",
         "Сегодня я выбираю спокойствие и любовь.",
         "Мой голос — это инструмент любви, а не крика.",
@@ -143,8 +145,6 @@ def get_daily_affirmation():
         "Сегодня я буду говорить с собой с любовью.",
         "Я ценю себя за всё, что я делаю.",
         "Мир начинается с меня, и я выбираю мир.",
-        
-        # Февраль (32-59)
         "Я — волшебница, которая создаёт уют и тепло.",
         "Мои объятия лечат и успокаивают.",
         "Я умею находить радость в мелочах.",
@@ -174,8 +174,6 @@ def get_daily_affirmation():
         "Каждый день я становлюсь мудрее.",
         "Я выбираю быть в гармонии с собой.",
         "Мой дом — место любви и взаимопонимания.",
-        
-        # Март (60-90)
         "Я — мама, которая умеет любить безусловно.",
         "Сегодня я выбираю спокойствие в каждой ситуации.",
         "Я доверяю процессу воспитания.",
@@ -207,8 +205,6 @@ def get_daily_affirmation():
         "Я выбираю быть здоровой и счастливой.",
         "Мои дети — мои лучшие учителя.",
         "Я благодарна за каждый день с моей семьёй.",
-        
-        # Апрель (91-120)
         "Я — мама, которая умеет просить о помощи.",
         "Сегодня я выбираю быть в моменте здесь и сейчас.",
         "Я доверяю своей интуиции и своему сердцу.",
@@ -239,8 +235,6 @@ def get_daily_affirmation():
         "Я выбираю быть свободной от чувства вины.",
         "Моя жизнь наполнена любовью и смыслом.",
         "Я умею видеть хорошее в своих детях.",
-        
-        # Май (121-151)
         "Я — мама, которая умеет радоваться жизни.",
         "Сегодня я выбираю быть спокойной и уравновешенной.",
         "Я доверяю своей мудрости и опыту.",
@@ -271,8 +265,6 @@ def get_daily_affirmation():
         "Я выбираю быть автором своей жизни.",
         "Моя жизнь наполнена смыслом и любовью.",
         "Я умею видеть свет даже в тёмные времена.",
-        
-        # Июнь (152-181)
         "Я — мама, которая умеет быть гибкой.",
         "Сегодня я выбираю радость и лёгкость.",
         "Я доверяю своему материнскому сердцу.",
@@ -303,8 +295,6 @@ def get_daily_affirmation():
         "Я выбираю быть свободной от страхов.",
         "Моя жизнь наполнена чудесами и открытиями.",
         "Я умею видеть красоту в простом.",
-        
-        # Июль (182-212)
         "Я — мама, которая умеет быть терпеливой.",
         "Сегодня я выбираю мир в своём сердце.",
         "Я доверяю своей способности быть хорошей мамой.",
@@ -335,8 +325,6 @@ def get_daily_affirmation():
         "Я выбираю быть в потоке любви.",
         "Моя жизнь — это прекрасное приключение.",
         "Я умею видеть счастье в каждом мгновении.",
-        
-        # Август (213-243)
         "Я — мама, которая умеет быть заботливой.",
         "Сегодня я выбираю спокойствие и умиротворение.",
         "Я доверяю своему сердцу и интуиции.",
@@ -367,8 +355,6 @@ def get_daily_affirmation():
         "Я выбираю быть свободной и счастливой.",
         "Моя жизнь наполнена любовью и миром.",
         "Я умею видеть красоту в каждом человеке.",
-        
-        # Сентябрь (244-273)
         "Я — мама, которая умеет быть мудрой.",
         "Сегодня я выбираю покой и гармонию.",
         "Я доверяю своей способности воспитывать.",
@@ -399,8 +385,6 @@ def get_daily_affirmation():
         "Я выбираю быть в любви и изобилии.",
         "Моя жизнь — это прекрасный дар.",
         "Я умею видеть свет в любой ситуации.",
-        
-        # Октябрь (274-304)
         "Я — мама, которая умеет быть сильной.",
         "Сегодня я выбираю радость и позитив.",
         "Я доверяю своей интуиции и мудрости.",
@@ -431,8 +415,6 @@ def get_daily_affirmation():
         "Я выбираю быть свободной и счастливой.",
         "Моя жизнь наполнена любовью и изобилием.",
         "Я умею видеть хорошее в каждом дне.",
-        
-        # Ноябрь (305-334)
         "Я — мама, которая умеет быть любящей.",
         "Сегодня я выбираю покой и умиротворение.",
         "Я доверяю своей материнской интуиции.",
@@ -463,8 +445,6 @@ def get_daily_affirmation():
         "Я выбираю быть свободной от страхов.",
         "Моя жизнь — это сказка, которую я создаю.",
         "Я умею видеть красоту вокруг себя.",
-        
-        # Декабрь (335-365)
         "Я — мама, которая умеет быть терпеливой.",
         "Сегодня я выбираю любовь и доброту.",
         "Я доверяю своей мудрости и опыту.",
@@ -498,50 +478,106 @@ def get_daily_affirmation():
         "Я — мама, и я прекрасна в своей уникальности."
     ]
     
-    # Получаем день года (1-365)
     day_of_year = datetime.now().timetuple().tm_yday
-    # Корректируем для високосного года
     if datetime.now().year % 4 == 0 and day_of_year > 60:
         day_of_year -= 1
-    # Возвращаем аффирмацию для этого дня
     return affirmations[day_of_year - 1]
 
-@dp.message_handler(lambda message: message.text == "🌅 Аффирмация дня")
-async def daily_affirmation(message: types.Message):
-    user_id = message.from_user.id
-    
-    # Проверяем, получала ли мама аффирмацию сегодня
-    cursor.execute("SELECT last_affirmation FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    today = datetime.now().strftime('%Y-%m-%d')
-    
-    if result and result[0] == today:
-        # Если уже получала сегодня, показываем ту же аффирмацию
-        affirmation = get_daily_affirmation()
-        await message.answer(
-            f"🌅 **Твоя аффирмация на сегодня:**\n\n"
-            f"«{affirmation}»\n\n"
-            f"💫 Ты уже получила её сегодня. Повтори несколько раз с любовью к себе.",
-            reply_markup=main_keyboard()
-        )
-    else:
-        # Обновляем дату получения
-        cursor.execute("UPDATE users SET last_affirmation = ? WHERE user_id = ?", (today, user_id))
-        conn.commit()
-        
-        affirmation = get_daily_affirmation()
-        
-        # Добавляем номер дня
-        day_of_year = datetime.now().timetuple().tm_yday
-        
-        await message.answer(
-            f"🌅 **Аффирмация дня #{day_of_year}**\n\n"
-            f"«{affirmation}»\n\n"
-            f"💫 Повтори эту аффирмацию 3 раза сегодня.\n"
-            f"✨ Она наполнит тебя силой и уверенностью.\n\n"
-            f"💝 Ты — самая лучшая мама для своего ребёнка!",
-            reply_markup=main_keyboard()
-        )
+# ===== СОВЕТЫ ПСИХОЛОГА =====
+def get_age_keyboard():
+    keyboard = InlineKeyboardMarkup(row_width=3)
+    keyboard.add(
+        InlineKeyboardButton("👶 1-3 года", callback_data="age_1_3"),
+        InlineKeyboardButton("🧒 4-6 лет", callback_data="age_4_6"),
+        InlineKeyboardButton("👦 7-10 лет", callback_data="age_7_10")
+    )
+    keyboard.add(
+        InlineKeyboardButton("👧 11-14 лет", callback_data="age_11_14"),
+        InlineKeyboardButton("🧑 15-18 лет", callback_data="age_15_18")
+    )
+    keyboard.add(
+        InlineKeyboardButton("📚 Общие рекомендации", callback_data="age_general")
+    )
+    return keyboard
+
+def get_advice_by_age(age_group):
+    advice = {
+        "age_1_3": {
+            "title": "👶 Дети 1-3 года",
+            "tips": [
+                "🧸 **Кризис 3 лет** — это нормально. Ребёнок учится говорить «нет», это этап становления личности.",
+                "🫂 **Обнимайте чаще**. В этом возрасте тактильный контакт важнее слов.",
+                "🔄 **Переключайте внимание**. Вместо запрета предложите альтернативу: «Нельзя рисовать на стене, давай на бумаге».",
+                "😌 **Сохраняйте спокойствие**. Ребёнок считывает ваши эмоции. Если вы злитесь — он пугается.",
+                "🗣️ **Говорите простыми фразами**. Короткие предложения, чёткие инструкции.",
+                "⏰ **Режим дня** — основа спокойствия. Дети этого возраста нуждаются в предсказуемости.",
+                "🎮 **Игра — главный способ обучения**. Через игру ребёнок познаёт мир и учится правилам."
+            ]
+        },
+        "age_4_6": {
+            "title": "🧒 Дети 4-6 лет",
+            "tips": [
+                "🎨 **Развивайте фантазию**. В этом возрасте активно развивается воображение.",
+                "🤝 **Учите договариваться**. Объясняйте, что у всех есть чувства и желания.",
+                "📖 **Читайте вместе**. Книги помогают развивать эмпатию и словарный запас.",
+                "⏱️ **Давайте выбор**. «Ты хочешь убрать игрушки сейчас или через 5 минут?» — снижает сопротивление.",
+                "👂 **Слушайте внимательно**. Дети этого возраста много говорят, им важно, чтобы их слышали.",
+                "🏆 **Хвалите за старания**, а не за результат. «Ты так старался!» — важнее, чем «Ты молодец».",
+                "😤 **Истерики — способ выразить эмоции**. Научите ребёнка называть чувства: «Я злюсь, потому что...»"
+            ]
+        },
+        "age_7_10": {
+            "title": "👦 Дети 7-10 лет",
+            "tips": [
+                "📚 **Школа — новый стресс**. Помогайте адаптироваться, не требуйте идеальных оценок.",
+                "🤗 **Поддерживайте дружбу**. Обсуждайте отношения с одноклассниками, учите разрешать конфликты.",
+                "⏰ **Учите планировать время**. Вместе составляйте расписание уроков и отдыха.",
+                "🗣️ **Обсуждайте чувства**. Спрашивайте: «Что тебя сегодня порадовало / расстроило?»",
+                "🎮 **Игры и спорт** помогают снимать напряжение. Важно, чтобы была физическая активность.",
+                "📱 **Устанавливайте правила** использования гаджетов. Важно делать это вместе с ребёнком.",
+                "💪 **Хвалите за самостоятельность**. Давайте небольшие поручения, чтобы ребёнок чувствовал свою важность."
+            ]
+        },
+        "age_11_14": {
+            "title": "👧 Дети 11-14 лет",
+            "tips": [
+                "🔥 **Подростковый кризис** — норма. Гормональные изменения влияют на поведение.",
+                "🤝 **Будьте другом**, а не надзирателем. Подросткам важны доверительные отношения.",
+                "🗣️ **Не критикуйте внешность**. В этом возрасте самооценка очень уязвима.",
+                "📱 **Интернет-безопасность**. Обсуждайте правила поведения в соцсетях, не запрещайте, а объясняйте.",
+                "👂 **Слушайте без осуждения**. Подростку важно, чтобы его принимали и понимали.",
+                "💪 **Давайте свободу в разумных пределах**. Это помогает формировать ответственность.",
+                "💕 **Говорите о любви**. Даже если кажется, что ребёнок отталкивает, ему нужна ваша поддержка."
+            ]
+        },
+        "age_15_18": {
+            "title": "🧑 Дети 15-18 лет",
+            "tips": [
+                "🎯 **Поддерживайте выбор профессии**. Помогайте с профориентацией, но не навязывайте своё мнение.",
+                "🤝 **Отношения на равных**. Ваш ребёнок почти взрослый, уважайте его мнение.",
+                "🗣️ **Обсуждайте будущее**. Мечты и планы помогают справляться с тревогой.",
+                "💕 **Говорите о чувствах**. Подростки переживают первую любовь, им нужна поддержка.",
+                "📱 **Доверяйте, но проверяйте**. Важно сохранять баланс между контролем и свободой.",
+                "💪 **Поддерживайте самостоятельность**. Пусть принимает решения и несёт ответственность.",
+                "❤️ **Будьте рядом**. Даже когда кажется, что ребёнок не нуждается в вас, он всё равно ждёт вашей любви."
+            ]
+        },
+        "age_general": {
+            "title": "📚 Общие рекомендации для всех возрастов",
+            "tips": [
+                "❤️ **Безусловная любовь**. Ребёнок должен знать, что вы любите его любым — и в радости, и в гневе.",
+                "👂 **Слушайте активно**. Не перебивайте, задавайте уточняющие вопросы, проявляйте искренний интерес.",
+                "😌 **Контролируйте свои эмоции**. Дети копируют ваше поведение. Если вы кричите — они учатся кричать.",
+                "🔄 **Устанавливайте чёткие границы**. Правила должны быть понятными и последовательными.",
+                "🤗 **Обнимайте каждый день**. Тактильный контакт укрепляет привязанность и снижает тревогу.",
+                "📖 **Читайте и обсуждайте**. Книги помогают развивать мышление и эмпатию.",
+                "🙏 **Будьте примером**. Ребёнок учится не тому, что вы говорите, а тому, что вы делаете."
+            ]
+        }
+    }
+    return advice.get(age_group, advice["age_general"])
+
+# ===== КОМАНДЫ =====
 
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
@@ -574,7 +610,8 @@ async def start(message: types.Message):
         "• Нажми «🆘 SOS-Пауза» когда закипаешь\n"
         "• Я дам 10 упражнений осознанности, чтобы успокоиться\n"
         "• Используй «📝 Сказать мягко» для важных разговоров\n"
-        "• Получай «🌅 Аффирмацию дня» для поддержки себя\n\n"
+        "• Получай «🌅 Аффирмацию дня» для поддержки себя\n"
+        "• Узнай «👩‍⚕️ Советы психолога» для любого возраста\n\n"
         f"👥 Твоя ссылка для подруг:\n"
         f"`https://t.me/{bot_username}?start={code}`\n\n"
         "💡 3 мягкие фразы в день бесплатно\n"
@@ -819,7 +856,6 @@ async def soft_phrase(message: types.Message, state: FSMContext):
 async def process_phrase(message: types.Message, state: FSMContext):
     user_text = message.text.lower()
     
-    # БАЗА МЯГКИХ ФРАЗ
     soft_phrases = [
         "Солнышко, я тебя очень люблю. Давай сделаем это вместе?",
         "Мой хороший, мне нужна твоя помощь. Пожалуйста, помоги мне.",
@@ -887,7 +923,6 @@ async def process_phrase(message: types.Message, state: FSMContext):
         "Играть с тобой — это счастье. Давай ещё немного."
     ]
     
-    # КЛЮЧЕВЫЕ СЛОВА
     negative_words = [
         "идиот", "дурак", "тупой", "глупый", "бездарь", "лентяй", "неряха",
         "негодяй", "подлец", "предатель", "лжец", "трус", "жадина", "эгоист",
@@ -923,7 +958,6 @@ async def process_phrase(message: types.Message, state: FSMContext):
         "кубики", "конструктор", "пазлы", "машинки", "куклы"
     ]
     
-    # АНАЛИЗ
     has_negative = any(word in user_text for word in negative_words)
     has_positive = any(word in user_text for word in positive_words)
     needs_help = any(word in user_text for word in help_words)
@@ -938,7 +972,6 @@ async def process_phrase(message: types.Message, state: FSMContext):
         if any(word in user_text for word in harsh_insults):
             intensity += 2
     
-    # ВЫБОР ФРАЗЫ
     if has_negative and intensity >= 3:
         selected = random.choice(soft_phrases[:15])
         explanation = "🌿 Я чувствую, что ты очень злишься. Давай я помогу тебе сказать это мягко и с любовью:"
@@ -971,7 +1004,79 @@ async def process_phrase(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
+# ===== АФФИРМАЦИЯ ДНЯ =====
+
+@dp.message_handler(lambda message: message.text == "🌅 Аффирмация дня")
+async def daily_affirmation(message: types.Message):
+    user_id = message.from_user.id
+    
+    cursor.execute("SELECT last_affirmation FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    if result and result[0] == today:
+        affirmation = get_daily_affirmation()
+        await message.answer(
+            f"🌅 **Твоя аффирмация на сегодня:**\n\n"
+            f"«{affirmation}»\n\n"
+            f"💫 Ты уже получила её сегодня. Повтори несколько раз с любовью к себе.",
+            reply_markup=main_keyboard()
+        )
+    else:
+        cursor.execute("UPDATE users SET last_affirmation = ? WHERE user_id = ?", (today, user_id))
+        conn.commit()
+        
+        affirmation = get_daily_affirmation()
+        day_of_year = datetime.now().timetuple().tm_yday
+        
+        await message.answer(
+            f"🌅 **Аффирмация дня #{day_of_year}**\n\n"
+            f"«{affirmation}»\n\n"
+            f"💫 Повтори эту аффирмацию 3 раза сегодня.\n"
+            f"✨ Она наполнит тебя силой и уверенностью.\n\n"
+            f"💝 Ты — самая лучшая мама для своего ребёнка!",
+            reply_markup=main_keyboard()
+        )
+
+# ===== СОВЕТЫ ПСИХОЛОГА =====
+
+@dp.message_handler(lambda message: message.text == "👩‍⚕️ Советы психолога")
+async def psychologist_advice(message: types.Message):
+    await message.answer(
+        "👩‍⚕️ **Советы психолога для родителей**\n\n"
+        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
+        reply_markup=get_age_keyboard()
+    )
+
+@dp.callback_query_handler(lambda c: c.data.startswith('age_'))
+async def process_age_choice(callback_query: types.CallbackQuery):
+    age_group = callback_query.data
+    advice_data = get_advice_by_age(age_group)
+    
+    tips_text = "\n\n".join(advice_data["tips"])
+    
+    await callback_query.message.edit_text(
+        f"👩‍⚕️ **{advice_data['title']}**\n\n"
+        f"{tips_text}\n\n"
+        f"💡 Помни: каждый ребёнок уникален. Эти рекомендации — ориентир, а не строгие правила.\n\n"
+        f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
+        reply_markup=InlineKeyboardMarkup().add(
+            InlineKeyboardButton("🔙 Назад к возрастам", callback_data="back_to_ages")
+        )
+    )
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "back_to_ages")
+async def back_to_ages(callback_query: types.CallbackQuery):
+    await callback_query.message.edit_text(
+        "👩‍⚕️ **Советы психолога для родителей**\n\n"
+        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
+        reply_markup=get_age_keyboard()
+    )
+    await callback_query.answer()
+
 # ===== СТАТИСТИКА =====
+
 @dp.message_handler(lambda message: message.text == "📊 Моя статистика")
 async def stats(message: types.Message):
     user_id = message.from_user.id
@@ -992,6 +1097,7 @@ async def stats(message: types.Message):
         )
 
 # ===== PREMIUM =====
+
 @dp.message_handler(lambda message: message.text == "💎 Premium")
 async def premium_info(message: types.Message):
     user_id = message.from_user.id
@@ -1014,6 +1120,7 @@ async def premium_info(message: types.Message):
     )
 
 # ===== ПРИГЛАСИТЬ ПОДРУГУ =====
+
 @dp.message_handler(lambda message: message.text == "👥 Пригласить подругу")
 async def referral(message: types.Message):
     user_id = message.from_user.id
@@ -1033,6 +1140,7 @@ async def referral(message: types.Message):
     )
 
 # ===== ПОДДЕРЖАТЬ =====
+
 @dp.message_handler(lambda message: message.text == "❤️ Поддержать проект")
 async def donate(message: types.Message):
     await message.answer(
@@ -1042,23 +1150,26 @@ async def donate(message: types.Message):
     )
 
 # ===== ПОМОЩЬ =====
+
 @dp.message_handler(lambda message: message.text == "📞 Помощь")
 async def help_menu(message: types.Message):
     await message.answer(
         "📞 **Помощь**\n\n"
         "❓ Частые вопросы:\n"
         "• Как оплатить Premium? → Нажми «💎 Premium»\n"
-        "• Не приходит код? → Напиши @PauseMomSupport\n\n"
+        "• Не приходит код? → Напиши поддержке\n\n"
         "📱 Поддержка: @PauseMomSupport",
         reply_markup=main_keyboard()
     )
 
 # ===== НАЗАД =====
+
 @dp.message_handler(lambda message: message.text == "🔙 Главное меню")
 async def back_to_menu(message: types.Message):
     await message.answer("Главное меню:", reply_markup=main_keyboard())
 
 # ===== ОБРАБОТЧИК КОДА ОПЛАТЫ =====
+
 @dp.message_handler(content_types=['text'])
 async def handle_payment_code(message: types.Message):
     if message.text.isdigit() and len(message.text) == 6:
