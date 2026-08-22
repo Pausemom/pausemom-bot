@@ -89,9 +89,11 @@ async def generate_referral_code(user_id):
     return code
 
 async def has_agreed_to_terms(user_id):
-    user = await get_user(user_id)
-    if user:
-        return user[12] == 1
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT agreed_to_terms FROM users WHERE user_id = ?", (user_id,))
+        result = await cursor.fetchone()
+    if result:
+        return result[0] == 1
     return False
 
 async def set_agreed_to_terms(user_id):
