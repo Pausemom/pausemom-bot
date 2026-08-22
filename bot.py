@@ -849,7 +849,195 @@ async def sos(message: types.Message):
     )
 
 # ===== 10 MINDFULNESS-УПРАЖНЕНИЙ =====
-# (все упражнения есть в коде выше, я их не удаляю — они работают)
+
+@dp.message_handler(lambda message: message.text == "🌬️ Дыхание 4-7-8")
+async def breathe(message: types.Message):
+    await message.answer(
+        "🌬️ **Дыхание 4-7-8** (техника доктора Вейля)\n\n"
+        "1️⃣ Вдохни носом — **4** секунды\n"
+        "2️⃣ Задержи дыхание — **7** секунд\n"
+        "3️⃣ Выдохни ртом — **8** секунд\n\n"
+        "🔄 Повтори **5 раз**.\n\n"
+        "✨ Это снижает уровень кортизола (гормона стресса).",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "✅ Ты справилась!\n\n"
+        "Ты вернула себе контроль. Теперь ты — спокойная и любящая мама.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "🧘 Осознанное дыхание")
+async def mindful_breath(message: types.Message):
+    await message.answer(
+        "🧘 **Осознанное дыхание**\n\n"
+        "1️⃣ Сядь удобно, закрой глаза.\n"
+        "2️⃣ Сделай 3 глубоких вдоха и выдоха.\n"
+        "3️⃣ Теперь просто **наблюдай** за своим дыханием.\n"
+        "   • Вдох — я спокойна\n"
+        "   • Выдох — я отпускаю гнев\n"
+        "4️⃣ Продолжай 1 минуту.\n\n"
+        "✨ Это возвращает тебя в «здесь и сейчас».",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🕊️ Ты дышишь осознанно. Гнев уходит, спокойствие приходит.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "👀 5-4-3-2-1")
+async def grounding(message: types.Message):
+    await message.answer(
+        "👀 **Упражнение «5-4-3-2-1»** (заземление)\n\n"
+        "Оглянись вокруг и найди:\n"
+        "5️⃣ **вещей**, которые ты видишь\n"
+        "4️⃣ **звука**, которые ты слышишь\n"
+        "3️⃣ **ощущения** на коже (ветер, тепло, ткань)\n"
+        "2️⃣ **запаха**, которые ты чувствуешь\n"
+        "1️⃣ **вкуса** во рту\n\n"
+        "✨ Это возвращает мозг в реальность.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🌿 Ты вернулась в реальность. Ты в безопасности.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "🤗 Обнять себя")
+async def self_hug(message: types.Message):
+    await message.answer(
+        "🤗 **Техника «Бабочка»**\n\n"
+        "1️⃣ Скрести руки на груди\n"
+        "2️⃣ Положи ладони на плечи\n"
+        "3️⃣ Похлопай себя по плечам попеременно\n"
+        "4️⃣ Продолжай **1 минуту**\n\n"
+        "✨ Это успокаивает нервную систему.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🦋 Ты молодец! Нервная система успокоилась.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "💧 Умыться водой")
+async def wash(message: types.Message):
+    await message.answer(
+        "🚰 **Умывание холодной водой**\n\n"
+        "1️⃣ Встань и подойди к раковине\n"
+        "2️⃣ Умой лицо холодной водой **3 раза**\n"
+        "3️⃣ Почувствуй, как вода смывает гнев\n\n"
+        "✨ Это запускает «нырятельный рефлекс» — пульс замедляется.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "💧 Отлично! Теперь скажи: «Я хорошая мама»",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "🦶 Стойка на ногах")
+async def standing(message: types.Message):
+    await message.answer(
+        "🦶 **Стойка на ногах** (заземление через тело)\n\n"
+        "1️⃣ Встань ровно, ноги на ширине плеч\n"
+        "2️⃣ Почувствуй, как ноги касаются пола\n"
+        "3️⃣ Начинай медленно переносить вес:\n"
+        "   • На пятки — **3 секунды**\n"
+        "   • На носки — **3 секунды**\n"
+        "   • На внешний край стоп — **3 секунды**\n"
+        "4️⃣ Повтори **5 раз**\n\n"
+        "✨ Это возвращает тебя в тело.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🦶 Ты снова ощущаешь своё тело. Спокойствие возвращается.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "🧠 Сканирование тела")
+async def body_scan(message: types.Message):
+    await message.answer(
+        "🧠 **Сканирование тела**\n\n"
+        "Закрой глаза и почувствуй:\n"
+        "👣 **Стопы** — ощущаешь ли ты их?\n"
+        "🦵 **Ноги** — какие ощущения?\n"
+        "🤲 **Руки** — что чувствуют ладони?\n"
+        "🫀 **Грудь** — как бьётся сердце?\n"
+        "👤 **Лицо** — расслаблены ли мышцы?\n\n"
+        "✨ Это снимает напряжение.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🧠 Ты просканировала тело. Напряжение уходит.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "☀️ Луч света")
+async def light_beam(message: types.Message):
+    await message.answer(
+        "☀️ **Луч света** (визуализация)\n\n"
+        "1️⃣ Закрой глаза.\n"
+        "2️⃣ Представь **тёплый золотистый свет** над головой.\n"
+        "3️⃣ Этот свет медленно опускается:\n"
+        "   • на лицо — смывает напряжение\n"
+        "   • на плечи — снимает тяжесть\n"
+        "   • на грудь — наполняет спокойствием\n"
+        "   • на всё тело — наполняет теплом\n\n"
+        "4️⃣ Продолжай **1 минуту**\n\n"
+        "✨ Свет растворяет гнев.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "☀️ Ты наполнена светом и спокойствием.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "🌊 Волна дыхания")
+async def wave_breath(message: types.Message):
+    await message.answer(
+        "🌊 **Волна дыхания**\n\n"
+        "Представь, что твоё дыхание — это волны океана:\n\n"
+        "🌊 **Вдох** — волна накатывает\n"
+        "   (наполняй живот воздухом)\n"
+        "🌊 **Выдох** — волна уходит\n"
+        "   (медленно отпускай воздух)\n\n"
+        "🔄 Повтори **5 раз** как волны океана\n\n"
+        "✨ Волны смывают гнев и тревогу.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "🌊 Ты как океан — спокойная и глубокая.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
+
+@dp.message_handler(lambda message: message.text == "💭 Наблюдатель")
+async def observer(message: types.Message):
+    await message.answer(
+        "💭 **Наблюдатель** (отстранение от эмоций)\n\n"
+        "1️⃣ Закрой глаза.\n"
+        "2️⃣ Представь, что ты смотришь на себя со стороны.\n"
+        "3️⃣ Ты видишь свою злость как **облако**.\n"
+        "4️⃣ Наблюдай за этим облаком:\n"
+        "   • Оно пришло\n"
+        "   • Оно здесь\n"
+        "   • Оно уходит\n\n"
+        "5️⃣ Ты не злость — ты просто **наблюдаешь** её.\n\n"
+        "✨ Ты отделяешь себя от эмоций.",
+        reply_markup=sos_keyboard()
+    )
+    await asyncio.sleep(10)
+    await message.answer(
+        "💭 Ты — наблюдатель. Ты не злость, ты — спокойствие.",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
 
 # ===== СКАЗАТЬ МЯГКО =====
 @dp.message_handler(lambda message: message.text == "📝 Сказать мягко")
