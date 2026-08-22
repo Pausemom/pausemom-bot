@@ -38,6 +38,9 @@ bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
+# ===== ID АДМИНА =====
+ADMINS = [1076773869]  # Ваш Telegram ID
+
 # ===== СОСТОЯНИЯ =====
 class Form(StatesGroup):
     restore_step1 = State()
@@ -45,8 +48,11 @@ class Form(StatesGroup):
     restore_step3 = State()
     waiting_for_terms = State()
 
-# ===== ПРОВЕРКА PREMIUM =====
+# ===== ПРОВЕРКА PREMIUM (С УЧЁТОМ АДМИНА) =====
 def is_premium(user_id):
+    # Админы всегда имеют Premium
+    if user_id in ADMINS:
+        return True
     try:
         cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
         result = cursor.fetchone()
@@ -85,32 +91,27 @@ def set_agreed_to_terms(user_id):
 def main_keyboard(user_id):
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     
-    # Ряд 1
     keyboard.add(
         KeyboardButton("🆘 SOS-Пауза"),
         KeyboardButton("💎 Premium")
     )
-    # Ряд 2
     keyboard.add(
         KeyboardButton("👥 Пригласить подругу"),
         KeyboardButton("💝 Нужные слова для мамы")
     )
-    # Ряд 3
     keyboard.add(
         KeyboardButton("🧸 Техники для малышей"),
         KeyboardButton("🤝 Восстановить контакт")
     )
-    # Ряд 4
     keyboard.add(
         KeyboardButton("📚 Общие рекомендации по возрасту"),
         KeyboardButton("📞 Помощь")
     )
     
-    # Ряд 5 — Аффирмация дня (только для Premium)
-    if is_premium(user_id):
-        keyboard.add(
-            KeyboardButton("🌅 Аффирмация дня")
-        )
+    # Аффирмация дня — видна всем, но доступ только Premium/админам
+    keyboard.add(
+        KeyboardButton("🌅 Аффирмация дня")
+    )
     
     return keyboard
 
@@ -199,7 +200,7 @@ def get_kids_techniques(age_group):
     }
     return techniques.get(age_group, techniques["4_6"])
 
-# ===== 100 АФФИРМАЦИЙ (PREMIUM) =====
+# ===== 100 АФФИРМАЦИЙ =====
 def get_daily_affirmation():
     affirmations = [
         "Я — хорошая мама, и я делаю всё, что в моих силах.",
@@ -785,7 +786,6 @@ async def referral(message: types.Message):
 @dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт")
 async def restore_contact(message: types.Message):
     user_id = message.from_user.id
-    ADMINS = [1076773869]
     
     if user_id in ADMINS or is_premium(user_id):
         keyboard = InlineKeyboardMarkup(row_width=2)
@@ -1179,7 +1179,6 @@ async def back_to_support(callback_query: types.CallbackQuery):
 @dp.message_handler(lambda message: message.text == "🧸 Техники для малышей")
 async def kids_techniques_menu(message: types.Message):
     user_id = message.from_user.id
-    ADMINS = [1076773869]
     
     if user_id in ADMINS or is_premium(user_id):
         keyboard = InlineKeyboardMarkup(row_width=2)
@@ -1239,13 +1238,12 @@ async def back_to_kids(callback_query: types.CallbackQuery):
     await kids_techniques_menu(callback_query.message)
     await callback_query.answer()
 
-# ===== КНОПКА "АФФИРМАЦИЯ ДНЯ" (PREMIUM) =====
+# ===== КНОПКА "АФФИРМАЦИЯ ДНЯ" (ДОСТУП АДМИНАМ) =====
 @dp.message_handler(lambda message: message.text == "🌅 Аффирмация дня")
 async def daily_affirmation(message: types.Message):
     user_id = message.from_user.id
-    ADMINS = [1076773869]
     
-    # Проверяем Premium
+    # Проверяем Premium (админы всегда имеют доступ)
     if user_id not in ADMINS and not is_premium(user_id):
         keyboard = InlineKeyboardMarkup(row_width=1)
         keyboard.add(
@@ -1368,8 +1366,6 @@ async def back_to_main(callback_query: types.CallbackQuery):
 async def premium_info(message: types.Message):
     user_id = message.from_user.id
     
-    ADMINS = [1076773869]
-    
     # Админ — доступ без оплаты
     if user_id in ADMINS:
         await message.answer(
@@ -1460,7 +1456,6 @@ async def back_to_premium(callback_query: types.CallbackQuery):
 async def confirm_payment(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     
-    ADMINS = [1076773869]
     if user_id in ADMINS:
         add_premium(user_id, 36500)
         await callback_query.message.edit_text(
@@ -1514,8 +1509,6 @@ async def back_to_menu(message: types.Message):
 # ===== АДМИН-ПАНЕЛЬ =====
 @dp.message_handler(commands=['admin'])
 async def admin_command(message: types.Message):
-    ADMINS = [1076773869]
-    
     user_id = message.from_user.id
     if user_id not in ADMINS:
         await message.answer("⛔ **Доступ запрещён.**")
@@ -1541,7 +1534,6 @@ async def admin_command(message: types.Message):
 @dp.message_handler(lambda message: message.text == "👑 Активировать Premium (навсегда)")
 async def admin_premium_forever(message: types.Message):
     user_id = message.from_user.id
-    ADMINS = [1076773869]
     if user_id not in ADMINS:
         await message.answer("⛔ Доступ запрещён.")
         return
@@ -1557,7 +1549,6 @@ async def admin_premium_forever(message: types.Message):
 @dp.message_handler(lambda message: message.text == "👑 Активировать Premium (1 месяц)")
 async def admin_premium_1month(message: types.Message):
     user_id = message.from_user.id
-    ADMINS = [1076773869]
     if user_id not in ADMINS:
         await message.answer("⛔ Доступ запрещён.")
         return
@@ -1571,7 +1562,6 @@ async def admin_premium_1month(message: types.Message):
 @dp.message_handler(lambda message: message.text == "📊 Пользователи (статистика)")
 async def admin_stats(message: types.Message):
     user_id = message.from_user.id
-    ADMINS = [1076773869]
     if user_id not in ADMINS:
         await message.answer("⛔ Доступ запрещён.")
         return
