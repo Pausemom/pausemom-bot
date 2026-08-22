@@ -742,7 +742,7 @@ async def restore_step4(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
-# ===== ТЕХНИКИ =====
+# ===== ТЕХНИКИ ДЛЯ ВОССТАНОВЛЕНИЯ КОНТАКТА =====
 
 @dp.callback_query_handler(lambda c: c.data == "tech_stop_frame")
 async def tech_stop_frame(callback_query: types.CallbackQuery):
@@ -962,7 +962,6 @@ async def letter_save(message: types.Message, state: FSMContext):
 async def back_to_restore(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
     
-    # Создаём фейковое сообщение для вызова restore_contact
     class FakeMessage:
         def __init__(self, user_id):
             self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
@@ -1091,7 +1090,6 @@ async def process_kids_technique(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(lambda c: c.data == "back_to_kids")
 async def back_to_kids(callback_query: types.CallbackQuery):
-    # Создаём фейковое сообщение для вызова kids_techniques_menu
     class FakeMessage:
         def __init__(self, user_id):
             self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
