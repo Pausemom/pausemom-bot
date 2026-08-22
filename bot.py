@@ -127,6 +127,13 @@ def main_keyboard(user_id):
         KeyboardButton("📞 Помощь")
     )
     
+    # Если у пользователя есть Premium — показываем дополнительные кнопки
+    if is_premium(user_id):
+        keyboard.add(
+            KeyboardButton("🧸 Техники для малышей"),
+            KeyboardButton("🤝 Восстановить контакт (Premium)")
+        )
+    
     return keyboard
 
 def sos_keyboard():
@@ -600,11 +607,11 @@ def get_advice_by_age(age_group):
         "age_1_3": {
             "title": "👶 Дети 1-3 года",
             "tips": [
-                "🧸 **Кризис 3 лет** — это нормально.",
-                "🫂 **Обнимайте чаще**.",
-                "🔄 **Переключайте внимание**.",
-                "😌 **Сохраняйте спокойствие**.",
-                "🗣️ **Говорите простыми фразами**.",
+                "🧸 **Кризис 3 лет** — это нормально. Ребёнок учится говорить «нет».",
+                "🫂 **Обнимайте чаще**. Тактильный контакт важнее слов.",
+                "🔄 **Переключайте внимание**. Вместо запрета предложите альтернативу.",
+                "😌 **Сохраняйте спокойствие**. Ребёнок считывает ваши эмоции.",
+                "🗣️ **Говорите простыми фразами**. Короткие предложения, чёткие инструкции.",
                 "⏰ **Режим дня** — основа спокойствия.",
                 "🎮 **Игра — главный способ обучения**."
             ],
@@ -622,7 +629,7 @@ def get_advice_by_age(age_group):
                 "📖 **Читайте вместе**.",
                 "⏱️ **Давайте выбор**.",
                 "👂 **Слушайте внимательно**.",
-                "🏆 **Хвалите за старания**.",
+                "🏆 **Хвалите за старания**, а не за результат.",
                 "😤 **Истерики — способ выразить эмоции**."
             ],
             "restore_techniques": [
@@ -638,8 +645,8 @@ def get_advice_by_age(age_group):
                 "🤗 **Поддерживайте дружбу**.",
                 "⏰ **Учите планировать время**.",
                 "🗣️ **Обсуждайте чувства**.",
-                "🎮 **Игры и спорт** помогают.",
-                "📱 **Устанавливайте правила**.",
+                "🎮 **Игры и спорт** помогают снимать напряжение.",
+                "📱 **Устанавливайте правила** использования гаджетов.",
                 "💪 **Хвалите за самостоятельность**."
             ],
             "restore_techniques": [
@@ -652,11 +659,11 @@ def get_advice_by_age(age_group):
             "title": "👧 Дети 11-14 лет",
             "tips": [
                 "🔥 **Подростковый кризис** — норма.",
-                "🤝 **Будьте другом**.",
+                "🤝 **Будьте другом**, а не надзирателем.",
                 "🗣️ **Не критикуйте внешность**.",
                 "📱 **Интернет-безопасность**.",
                 "👂 **Слушайте без осуждения**.",
-                "💪 **Давайте свободу**.",
+                "💪 **Давайте свободу** в разумных пределах.",
                 "💕 **Говорите о любви**."
             ],
             "restore_techniques": [
@@ -687,9 +694,9 @@ def get_advice_by_age(age_group):
             "tips": [
                 "🤝 **Отношения на равных**.",
                 "🗣️ **Советуйте, но не навязывайте**.",
-                "🫂 **Будьте опорой**.",
-                "💕 **Принимайте выборы**.",
-                "📱 **Не вмешивайтесь**.",
+                "🫂 **Будьте опорой**, но не спасателем.",
+                "💕 **Принимайте выборы ребёнка**.",
+                "📱 **Не вмешивайтесь в личную жизнь**.",
                 "💰 **Финансовая поддержка** должна уменьшаться.",
                 "👂 **Слушайте без осуждения**.",
                 "💝 **Продолжайте проявлять любовь**.",
@@ -1050,7 +1057,31 @@ async def back_to_ages(callback_query: types.CallbackQuery):
 @dp.message_handler(lambda message: message.text == "💎 Premium")
 async def premium_info(message: types.Message):
     user_id = message.from_user.id
+    
+    # Проверяем, админ ли это (ваш Telegram ID)
+    ADMINS = [1076773869]  # Ваш ID
+    
+    # Если это вы — даём доступ без оплаты
+    if user_id in ADMINS:
+        await message.answer(
+            "👑 **Вы — создатель бота!**\n\n"
+            "Вам доступны все функции Premium без оплаты.\n\n"
+            "✨ **Доступно:**\n"
+            "✅ Техники для малышей (1-10 лет)\n"
+            "✅ Модуль «Восстановление контакта»\n"
+            "✅ Дневник эмоций\n"
+            "✅ Письмо ребёнку\n"
+            "✅ Безопасное пространство\n\n"
+            "🔹 Кнопка «🧸 Техники для малышей» появилась в меню.\n"
+            "🔹 Кнопка «🤝 Восстановить контакт (Premium)» появилась в меню.",
+            reply_markup=main_keyboard(user_id)
+        )
+        # Добавляем Premium админу, если его ещё нет
+        if not is_premium(user_id):
+            add_premium(user_id, 36500)  # 100 лет
+        return
 
+    # Если Premium уже есть
     if is_premium(user_id):
         cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
         result = cursor.fetchone()
@@ -1070,9 +1101,9 @@ async def premium_info(message: types.Message):
             )
         return
 
+    # Для обычных пользователей — предложение Premium
     keyboard = InlineKeyboardMarkup(row_width=1)
     keyboard.add(
-        InlineKeyboardButton("💳 Оплатить 999 ₽ через Robokassa", url="https://ваша_ссылка_на_robokassa"),
         InlineKeyboardButton("✅ Я оплатил(а)", callback_data="confirm_payment"),
         InlineKeyboardButton("❓ Как оплатить?", callback_data="payment_help")
     )
@@ -1086,9 +1117,9 @@ async def premium_info(message: types.Message):
         "✅ Письмо ребёнку\n"
         "✅ Безопасное пространство\n\n"
         "📲 **Как оплатить:**\n"
-        "1️⃣ Нажми «Оплатить через Robokassa»\n"
-        "2️⃣ Оплати 999 ₽\n"
-        "3️⃣ Вернись в бот и нажми «✅ Я оплатил(а)»\n\n"
+        "1️⃣ Напишите @PauseMomSupport_bot\n"
+        "2️⃣ Сообщите, что хотите оплатить Premium\n"
+        "3️⃣ После оплаты нажмите «✅ Я оплатил(а)»\n\n"
         "🔹 Premium активируется на 30 дней",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -1105,15 +1136,15 @@ async def payment_help(callback_query: types.CallbackQuery):
     )
     
     await callback_query.message.edit_text(
-        "❓ **Как оплатить Premium через Robokassa:**\n\n"
-        "1️⃣ Нажмите кнопку «Оплатить через Robokassa»\n"
-        "2️⃣ Вы перейдёте на сайт Robokassa\n"
-        "3️⃣ Выберите способ оплаты: карта, СБП, ЮMoney\n"
-        "4️⃣ Оплатите 999 ₽\n"
+        "❓ **Как оплатить Premium:**\n\n"
+        "1️⃣ Напишите @PauseMomSupport_bot\n"
+        "2️⃣ Сообщите: «Хочу оплатить Premium»\n"
+        "3️⃣ Вам придёт ссылка на оплату (999 ₽)\n"
+        "4️⃣ Оплатите удобным способом\n"
         "5️⃣ Вернитесь в бот и нажмите «✅ Я оплатил(а)»\n"
         "6️⃣ Premium активируется на 30 дней\n\n"
-        "💡 Если оплата не прошла — попробуйте ещё раз\n"
-        "🕐 После оплаты нажмите «Я оплатил(а)» в течение 24 часов",
+        "💡 Если вы уже оплатили, просто нажмите «Я оплатил(а)»\n"
+        "🕐 После оплаты мы активируем Premium в течение 15 минут",
         reply_markup=keyboard
     )
     await callback_query.answer()
@@ -1123,7 +1154,6 @@ async def payment_help(callback_query: types.CallbackQuery):
 async def back_to_premium(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     
-    # Создаём виртуальное сообщение
     class FakeMessage:
         def __init__(self, user_id):
             self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
@@ -1140,6 +1170,18 @@ async def back_to_premium(callback_query: types.CallbackQuery):
 async def confirm_payment(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     
+    # Проверяем, админ ли это
+    ADMINS = [1076773869]
+    if user_id in ADMINS:
+        add_premium(user_id, 36500)
+        await callback_query.message.edit_text(
+            "👑 **Premium активирован на 100 лет!** 🎉\n\n"
+            "Как создатель бота, вы имеете доступ ко всем функциям.",
+            reply_markup=main_keyboard(user_id)
+        )
+        await callback_query.answer()
+        return
+    
     if is_premium(user_id):
         await callback_query.message.edit_text(
             "✅ **У тебя уже есть Premium!**\n\n"
@@ -1149,6 +1191,7 @@ async def confirm_payment(callback_query: types.CallbackQuery):
         await callback_query.answer()
         return
     
+    # Активируем Premium на 30 дней (в реальном боте здесь проверялась бы оплата)
     add_premium(user_id, 30)
     
     await callback_query.message.edit_text(
@@ -1163,6 +1206,7 @@ async def confirm_payment(callback_query: types.CallbackQuery):
         reply_markup=main_keyboard(user_id)
     )
     await callback_query.answer()
+
 
 # ===== МОДУЛЬ "ВОССТАНОВЛЕНИЕ КОНТАКТА" (PREMIUM) =====
 @dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт (Premium)")
@@ -1637,7 +1681,7 @@ async def help_menu(message: types.Message):
 # ===== АДМИН-ПАНЕЛЬ =====
 @dp.message_handler(commands=['admin'])
 async def admin_command(message: types.Message):
-    ADMINS = [1076773869]
+    ADMINS = [1076773869]  # Ваш Telegram ID
     
     user_id = message.from_user.id
     if user_id not in ADMINS:
