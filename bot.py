@@ -39,7 +39,7 @@ storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
 # ===== ID АДМИНА =====
-ADMINS = [1076773869]  # Ваш Telegram ID
+ADMINS = [1076773869]
 
 # ===== СОСТОЯНИЯ =====
 class Form(StatesGroup):
@@ -48,9 +48,8 @@ class Form(StatesGroup):
     restore_step3 = State()
     waiting_for_terms = State()
 
-# ===== ПРОВЕРКА PREMIUM (С УЧЁТОМ АДМИНА) =====
+# ===== ПРОВЕРКА PREMIUM =====
 def is_premium(user_id):
-    # Админы всегда имеют Premium
     if user_id in ADMINS:
         return True
     try:
@@ -87,7 +86,20 @@ def set_agreed_to_terms(user_id):
     cursor.execute("UPDATE users SET agreed_to_terms = 1 WHERE user_id = ?", (user_id,))
     conn.commit()
 
-# ===== ГЛАВНАЯ КЛАВИАТУРА =====
+# ===== ДИСКЛЕЙМЕР =====
+DISCLAIMER = (
+    "📋 **О боте PauseMomBot**\n\n"
+    "PauseMomBot — это информационный помощник для родителей. "
+    "Все техники и рекомендации носят ознакомительный и общеразвивающий характер.\n\n"
+    "⚠️ **Важно:**\n"
+    "• Бот не является медицинским или психотерапевтическим инструментом\n"
+    "• Бот не ставит диагнозы и не назначает лечение\n"
+    "• Бот не заменяет профессиональную помощь психолога или врача\n\n"
+    "Если вы испытываете серьёзные трудности — обратитесь к квалифицированному специалисту.\n\n"
+    "📱 Поддержка: @PauseMomSupport_bot"
+)
+
+# ===== КЛАВИАТУРЫ =====
 def main_keyboard(user_id):
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     
@@ -107,15 +119,12 @@ def main_keyboard(user_id):
         KeyboardButton("📚 Общие рекомендации по возрасту"),
         KeyboardButton("📞 Помощь")
     )
-    
-    # Аффирмация дня — видна всем, но доступ только Premium/админам
     keyboard.add(
         KeyboardButton("🌅 Аффирмация дня")
     )
     
     return keyboard
 
-# ===== КЛАВИАТУРА SOS =====
 def sos_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     
@@ -144,18 +153,6 @@ def sos_keyboard():
     )
     
     return keyboard
-
-# ===== ДИСКЛЕЙМЕР =====
-DISCLAIMER = (
-    "📋 **О боте PauseMomBot**\n\n"
-    "PauseMomBot — это информационный помощник для родителей. "
-    "Все техники и рекомендации носят ознакомительный и общеразвивающий характер.\n\n"
-    "⚠️ **Важно:**\n"
-    "• Бот не является медицинским или психотерапевтическим инструментом\n"
-    "• Бот не ставит диагнозы и не назначает лечение\n"
-    "• Бот не заменяет профессиональную помощь психолога или врача\n\n"
-    "📱 Поддержка: @PauseMomSupport_bot"
-)
 
 # ===== ТЕХНИКИ ДЛЯ МАЛЫШЕЙ =====
 def get_kids_techniques(age_group):
@@ -566,7 +563,8 @@ async def start(message: types.Message):
         "🌸 Заботиться о себе и своих чувствах\n"
         "🌸 Находить нужные слова для себя и детей\n\n"
         "Здесь безопасно и конфиденциально.\n"
-        "Нажми «Здесь безопасно», чтобы продолжить ✨"
+        "Нажми «Здесь безопасно», чтобы продолжить ✨\n\n"
+        f"{DISCLAIMER}"
     )
     await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
 
@@ -1238,12 +1236,11 @@ async def back_to_kids(callback_query: types.CallbackQuery):
     await kids_techniques_menu(callback_query.message)
     await callback_query.answer()
 
-# ===== КНОПКА "АФФИРМАЦИЯ ДНЯ" (ДОСТУП АДМИНАМ) =====
+# ===== КНОПКА "АФФИРМАЦИЯ ДНЯ" =====
 @dp.message_handler(lambda message: message.text == "🌅 Аффирмация дня")
 async def daily_affirmation(message: types.Message):
     user_id = message.from_user.id
     
-    # Проверяем Premium (админы всегда имеют доступ)
     if user_id not in ADMINS and not is_premium(user_id):
         keyboard = InlineKeyboardMarkup(row_width=1)
         keyboard.add(
@@ -1366,7 +1363,6 @@ async def back_to_main(callback_query: types.CallbackQuery):
 async def premium_info(message: types.Message):
     user_id = message.from_user.id
     
-    # Админ — доступ без оплаты
     if user_id in ADMINS:
         await message.answer(
             "👑 **Вы — создатель бота!**\n\n"
@@ -1381,7 +1377,6 @@ async def premium_info(message: types.Message):
             add_premium(user_id, 36500)
         return
 
-    # Проверка Premium
     if is_premium(user_id):
         cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
         result = cursor.fetchone()
@@ -1395,7 +1390,6 @@ async def premium_info(message: types.Message):
             )
         return
 
-    # Обычное предложение Premium
     keyboard = InlineKeyboardMarkup(row_width=1)
     keyboard.add(
         InlineKeyboardButton("✅ Я оплатил(а)", callback_data="confirm_payment"),
