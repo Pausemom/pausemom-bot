@@ -168,7 +168,7 @@ DISCLAIMER = (
     "📱 Поддержка: @PauseMomSupport_bot"
 )
 
-# ===== ТЕХНИКИ ДЛЯ МАЛЫШЕЙ (ТЕПЕРЬ В PREMIUM) =====
+# ===== ТЕХНИКИ ДЛЯ МАЛЫШЕЙ =====
 def get_kids_techniques(age_group):
     techniques = {
         "1_3": {
@@ -600,11 +600,11 @@ def get_advice_by_age(age_group):
         "age_1_3": {
             "title": "👶 Дети 1-3 года",
             "tips": [
-                "🧸 **Кризис 3 лет** — это нормально. Ребёнок учится говорить «нет».",
-                "🫂 **Обнимайте чаще**. Тактильный контакт важнее слов.",
-                "🔄 **Переключайте внимание**. Вместо запрета предложите альтернативу.",
-                "😌 **Сохраняйте спокойствие**. Ребёнок считывает ваши эмоции.",
-                "🗣️ **Говорите простыми фразами**. Короткие предложения, чёткие инструкции.",
+                "🧸 **Кризис 3 лет** — это нормально.",
+                "🫂 **Обнимайте чаще**.",
+                "🔄 **Переключайте внимание**.",
+                "😌 **Сохраняйте спокойствие**.",
+                "🗣️ **Говорите простыми фразами**.",
                 "⏰ **Режим дня** — основа спокойствия.",
                 "🎮 **Игра — главный способ обучения**."
             ],
@@ -622,7 +622,7 @@ def get_advice_by_age(age_group):
                 "📖 **Читайте вместе**.",
                 "⏱️ **Давайте выбор**.",
                 "👂 **Слушайте внимательно**.",
-                "🏆 **Хвалите за старания**, а не за результат.",
+                "🏆 **Хвалите за старания**.",
                 "😤 **Истерики — способ выразить эмоции**."
             ],
             "restore_techniques": [
@@ -638,8 +638,8 @@ def get_advice_by_age(age_group):
                 "🤗 **Поддерживайте дружбу**.",
                 "⏰ **Учите планировать время**.",
                 "🗣️ **Обсуждайте чувства**.",
-                "🎮 **Игры и спорт** помогают снимать напряжение.",
-                "📱 **Устанавливайте правила** использования гаджетов.",
+                "🎮 **Игры и спорт** помогают.",
+                "📱 **Устанавливайте правила**.",
                 "💪 **Хвалите за самостоятельность**."
             ],
             "restore_techniques": [
@@ -652,11 +652,11 @@ def get_advice_by_age(age_group):
             "title": "👧 Дети 11-14 лет",
             "tips": [
                 "🔥 **Подростковый кризис** — норма.",
-                "🤝 **Будьте другом**, а не надзирателем.",
+                "🤝 **Будьте другом**.",
                 "🗣️ **Не критикуйте внешность**.",
                 "📱 **Интернет-безопасность**.",
                 "👂 **Слушайте без осуждения**.",
-                "💪 **Давайте свободу** в разумных пределах.",
+                "💪 **Давайте свободу**.",
                 "💕 **Говорите о любви**."
             ],
             "restore_techniques": [
@@ -687,16 +687,16 @@ def get_advice_by_age(age_group):
             "tips": [
                 "🤝 **Отношения на равных**.",
                 "🗣️ **Советуйте, но не навязывайте**.",
-                "🫂 **Будьте опорой**, но не спасателем.",
-                "💕 **Принимайте выборы ребёнка**.",
-                "📱 **Не вмешивайтесь в личную жизнь**.",
+                "🫂 **Будьте опорой**.",
+                "💕 **Принимайте выборы**.",
+                "📱 **Не вмешивайтесь**.",
                 "💰 **Финансовая поддержка** должна уменьшаться.",
                 "👂 **Слушайте без осуждения**.",
                 "💝 **Продолжайте проявлять любовь**.",
                 "🔄 **Пересмотрите роль «родитель»**.",
                 "🙏 **Прощайте ошибки**.",
                 "💬 **Учитесь диалогу**.",
-                "🌟 **Радуйтесь его/её успехам**."
+                "🌟 **Радуйтесь успехам**."
             ],
             "restore_techniques": [
                 "🛑 **Стоп-сигнал**",
@@ -833,7 +833,7 @@ async def sos(message: types.Message):
 @dp.message_handler(lambda message: message.text == "🌬️ Дыхание 4-7-8")
 async def breathe(message: types.Message):
     await message.answer(
-        "🌬️ **Дыхание 4-7-8** (техника доктора Вейля)\n\n"
+        "🌬️ **Дыхание 4-7-8**\n\n"
         "1️⃣ Вдохни носом — **4** секунды\n"
         "2️⃣ Задержи дыхание — **7** секунд\n"
         "3️⃣ Выдохни ртом — **8** секунд\n\n"
@@ -849,8 +849,6 @@ async def mindful_breath(message: types.Message):
         "1️⃣ Сядь удобно, закрой глаза.\n"
         "2️⃣ Сделай 3 глубоких вдоха и выдоха.\n"
         "3️⃣ Теперь просто **наблюдай** за своим дыханием.\n"
-        "   • Вдох — я спокойна\n"
-        "   • Выдох — я отпускаю гнев\n"
         "4️⃣ Продолжай 1 минуту.\n\n"
         "✨ Это возвращает тебя в «здесь и сейчас».",
         reply_markup=sos_keyboard()
@@ -859,7 +857,7 @@ async def mindful_breath(message: types.Message):
 @dp.message_handler(lambda message: message.text == "👀 5-4-3-2-1")
 async def grounding(message: types.Message):
     await message.answer(
-        "👀 **Упражнение «5-4-3-2-1»** (заземление)\n\n"
+        "👀 **Упражнение «5-4-3-2-1»**\n\n"
         "Оглянись вокруг и найди:\n"
         "5️⃣ **вещей**, которые ты видишь\n"
         "4️⃣ **звука**, которые ты слышишь\n"
@@ -875,9 +873,8 @@ async def self_hug(message: types.Message):
     await message.answer(
         "🤗 **Техника «Бабочка»**\n\n"
         "1️⃣ Скрести руки на груди\n"
-        "2️⃣ Положи ладони на плечи\n"
-        "3️⃣ Похлопай себя по плечам попеременно\n"
-        "4️⃣ Продолжай **1 минуту**\n\n"
+        "2️⃣ Похлопай себя по плечам попеременно\n"
+        "3️⃣ Продолжай **1 минуту**\n\n"
         "✨ Это успокаивает нервную систему.",
         reply_markup=sos_keyboard()
     )
@@ -896,7 +893,7 @@ async def wash(message: types.Message):
 @dp.message_handler(lambda message: message.text == "🦶 Стойка на ногах")
 async def standing(message: types.Message):
     await message.answer(
-        "🦶 **Стойка на ногах** (заземление через тело)\n\n"
+        "🦶 **Стойка на ногах**\n\n"
         "1️⃣ Встань ровно, ноги на ширине плеч\n"
         "2️⃣ Почувствуй, как ноги касаются пола\n"
         "3️⃣ Начинай медленно переносить вес:\n"
@@ -913,11 +910,11 @@ async def body_scan(message: types.Message):
     await message.answer(
         "🧠 **Сканирование тела**\n\n"
         "Закрой глаза и почувствуй:\n"
-        "👣 **Стопы** — ощущаешь ли ты их?\n"
-        "🦵 **Ноги** — какие ощущения?\n"
-        "🤲 **Руки** — что чувствуют ладони?\n"
-        "🫀 **Грудь** — как бьётся сердце?\n"
-        "👤 **Лицо** — расслаблены ли мышцы?\n\n"
+        "👣 **Стопы**\n"
+        "🦵 **Ноги**\n"
+        "🤲 **Руки**\n"
+        "🫀 **Грудь**\n"
+        "👤 **Лицо**\n\n"
         "✨ Это снимает напряжение.",
         reply_markup=sos_keyboard()
     )
@@ -925,14 +922,13 @@ async def body_scan(message: types.Message):
 @dp.message_handler(lambda message: message.text == "☀️ Луч света")
 async def light_beam(message: types.Message):
     await message.answer(
-        "☀️ **Луч света** (визуализация)\n\n"
+        "☀️ **Луч света**\n\n"
         "1️⃣ Закрой глаза.\n"
         "2️⃣ Представь **тёплый золотистый свет** над головой.\n"
         "3️⃣ Этот свет медленно опускается:\n"
         "   • на лицо — смывает напряжение\n"
         "   • на плечи — снимает тяжесть\n"
         "   • на грудь — наполняет спокойствием\n"
-        "   • на всё тело — наполняет теплом\n\n"
         "4️⃣ Продолжай **1 минуту**\n\n"
         "✨ Свет растворяет гнев.",
         reply_markup=sos_keyboard()
@@ -945,7 +941,7 @@ async def wave_breath(message: types.Message):
         "Представь, что твоё дыхание — это волны океана:\n\n"
         "🌊 **Вдох** — волна накатывает\n"
         "🌊 **Выдох** — волна уходит\n\n"
-        "🔄 Повтори **5 раз** как волны океана\n\n"
+        "🔄 Повтори **5 раз**\n\n"
         "✨ Волны смывают гнев и тревогу.",
         reply_markup=sos_keyboard()
     )
@@ -953,7 +949,7 @@ async def wave_breath(message: types.Message):
 @dp.message_handler(lambda message: message.text == "💭 Наблюдатель")
 async def observer(message: types.Message):
     await message.answer(
-        "💭 **Наблюдатель** (отстранение от эмоций)\n\n"
+        "💭 **Наблюдатель**\n\n"
         "1️⃣ Закрой глаза.\n"
         "2️⃣ Представь, что ты смотришь на себя со стороны.\n"
         "3️⃣ Ты видишь свою злость как **облако**.\n"
@@ -980,7 +976,7 @@ async def daily_affirmation(message: types.Message):
         await message.answer(
             f"🌅 **Твоя аффирмация на сегодня:**\n\n"
             f"«{affirmation}»\n\n"
-            f"💫 Ты уже получила её сегодня. Повтори несколько раз.",
+            f"💫 Повтори несколько раз с любовью к себе.",
             reply_markup=main_keyboard(user_id)
         )
     else:
@@ -1004,7 +1000,7 @@ async def daily_affirmation(message: types.Message):
 async def age_recommendations(message: types.Message):
     await message.answer(
         "📚 **Общие рекомендации по возрасту**\n\n"
-        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
+        "Выбери возраст своего ребёнка:",
         reply_markup=get_age_keyboard()
     )
 
@@ -1029,7 +1025,7 @@ async def process_age_choice(callback_query: types.CallbackQuery):
         )
     
     message_text += (
-        f"💡 Помни: каждый ребёнок уникален. Эти рекомендации — ориентир, а не строгие правила.\n\n"
+        f"💡 Помни: каждый ребёнок уникален. Эти рекомендации — ориентир.\n\n"
         f"🔙 Нажми «Назад», чтобы выбрать другой возраст."
     )
     
@@ -1045,7 +1041,7 @@ async def process_age_choice(callback_query: types.CallbackQuery):
 async def back_to_ages(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(
         "📚 **Общие рекомендации по возрасту**\n\n"
-        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
+        "Выбери возраст своего ребёнка:",
         reply_markup=get_age_keyboard()
     )
     await callback_query.answer()
@@ -1065,7 +1061,7 @@ async def premium_info(message: types.Message):
                 f"📅 Действует до: {end_date}\n\n"
                 "Пользуйся всеми функциями без ограничений.\n\n"
                 "✨ **Доступно:**\n"
-                "✅ Техники для малышей\n"
+                "✅ Техники для малышей (1-10 лет)\n"
                 "✅ Модуль «Восстановление контакта»\n"
                 "✅ Дневник эмоций\n"
                 "✅ Письмо ребёнку\n"
@@ -1098,8 +1094,16 @@ async def premium_info(message: types.Message):
         parse_mode="Markdown"
     )
 
+
 @dp.callback_query_handler(lambda c: c.data == "payment_help")
 async def payment_help(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        InlineKeyboardButton("🔙 Назад к Premium", callback_data="back_to_premium")
+    )
+    
     await callback_query.message.edit_text(
         "❓ **Как оплатить Premium через Robokassa:**\n\n"
         "1️⃣ Нажмите кнопку «Оплатить через Robokassa»\n"
@@ -1110,22 +1114,32 @@ async def payment_help(callback_query: types.CallbackQuery):
         "6️⃣ Premium активируется на 30 дней\n\n"
         "💡 Если оплата не прошла — попробуйте ещё раз\n"
         "🕐 После оплаты нажмите «Я оплатил(а)» в течение 24 часов",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_premium")
-        )
+        reply_markup=keyboard
     )
     await callback_query.answer()
 
+
 @dp.callback_query_handler(lambda c: c.data == "back_to_premium")
 async def back_to_premium(callback_query: types.CallbackQuery):
-    await premium_info(callback_query.message)
+    user_id = callback_query.from_user.id
+    
+    # Создаём виртуальное сообщение
+    class FakeMessage:
+        def __init__(self, user_id):
+            self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
+        async def answer(self, text, reply_markup=None, parse_mode=None):
+            await callback_query.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
+    
+    fake_msg = FakeMessage(user_id)
+    await callback_query.message.delete()
+    await premium_info(fake_msg)
     await callback_query.answer()
+
 
 @dp.callback_query_handler(lambda c: c.data == "confirm_payment")
 async def confirm_payment(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     
-    # Проверяем, не активирован ли уже Premium
     if is_premium(user_id):
         await callback_query.message.edit_text(
             "✅ **У тебя уже есть Premium!**\n\n"
@@ -1135,7 +1149,6 @@ async def confirm_payment(callback_query: types.CallbackQuery):
         await callback_query.answer()
         return
     
-    # Активируем Premium на 30 дней
     add_premium(user_id, 30)
     
     await callback_query.message.edit_text(
@@ -1288,8 +1301,7 @@ async def start_restore(message: types.Message, state: FSMContext):
         "🛑 **Шаг 1 из 4: Стоп-сигнал**\n\n"
         "Ты уже осознала, что наговорила лишнего. Ты продышалась.\n\n"
         "🔹 **Что делать:**\n"
-        "Ребёнок поставил границу (дверь, рука, молчание).\n"
-        "Самое важное сейчас — **не преследовать его**.\n\n"
+        "Ребёнок поставил границу. Самое важное сейчас — **не преследовать его**.\n\n"
         "🚫 Не стучись в дверь.\n"
         "🚫 Не кричи вдогонку.\n"
         "🚫 Не требуй ответа.\n\n"
@@ -1330,8 +1342,8 @@ async def restore_step3(message: types.Message, state: FSMContext):
         "Он не хочет говорить? Хорошо. Не заставляй.\n\n"
         "Покажи свою любовь через действие:\n\n"
         "• 🍳 Приготовь его любимую еду\n"
-        "• ✉️ Положи записку под дверь или на стол\n"
-        "• 😊 Просто улыбнись, когда он выйдет\n\n"
+        "• ✉️ Положи записку под дверь\n"
+        "• 😊 Просто улыбнись\n\n"
         "Твоя задача — не давить, а показать, что ты рядом.\n\n"
         "Когда будешь готова — нажми кнопку ниже.",
         reply_markup=keyboard
@@ -1468,14 +1480,14 @@ async def letter_exercise(message: types.Message, state: FSMContext):
     
     await message.answer(
         "🧘 **Упражнение «Письмо ребёнку»**\n\n"
-        "Это письмо — только для тебя. Ты не обязана его отправлять.\n\n"
+        "Это письмо — только для тебя.\n\n"
         "Напиши письмо своему ребёнку, начиная с фразы:\n\n"
         "«Мой любимый ребёнок...»\n\n"
         "Не редактируй себя. Пиши всё, что чувствуешь.\n\n"
         "Когда закончишь — прочитай письмо вслух себе.\n"
         "А потом... сожги его или удали.\n\n"
         "Ты имеешь право на свои чувства. ❤️\n\n"
-        "Напиши письмо одним сообщением (я сохраню его для тебя в тайне):",
+        "Напиши письмо одним сообщением:",
         reply_markup=main_keyboard(user_id)
     )
     await state.set_state("letter_waiting")
@@ -1625,7 +1637,7 @@ async def help_menu(message: types.Message):
 # ===== АДМИН-ПАНЕЛЬ =====
 @dp.message_handler(commands=['admin'])
 async def admin_command(message: types.Message):
-    ADMINS = [1076773869]  # Ваш Telegram ID
+    ADMINS = [1076773869]
     
     user_id = message.from_user.id
     if user_id not in ADMINS:
