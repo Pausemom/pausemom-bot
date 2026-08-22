@@ -128,7 +128,6 @@ def main_keyboard(user_id):
 def sos_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     
-    # Кнопка "Назад" в самом верху
     keyboard.add(
         KeyboardButton("🔙 Главное меню")
     )
@@ -802,7 +801,12 @@ async def accept_terms(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(
         "✅ **Спасибо!**\n\n"
         "Теперь вы можете пользоваться ботом.\n\n"
-        "🌸 Начните с главного меню:",
+        "🌸 Начните с главного меню:"
+    )
+    
+    await callback_query.message.answer(
+        "🌸 **Главное меню:**\n\n"
+        "Выберите, что вам нужно:",
         reply_markup=main_keyboard(user_id)
     )
     await callback_query.answer()
@@ -1252,7 +1256,6 @@ async def restore_contact(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     ADMINS = [1076773869]
     
-    # Админу доступ всегда открыт
     if user_id in ADMINS:
         await show_restore_menu(message, state)
         return
