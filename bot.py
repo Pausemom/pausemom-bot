@@ -102,6 +102,12 @@ def main_keyboard(user_id):
         KeyboardButton("📞 Помощь")
     )
     
+    # Аффирмации — только для Premium
+    if is_premium(user_id):
+        keyboard.add(
+            KeyboardButton("🌅 Аффирмация дня")
+        )
+    
     return keyboard
 
 # ===== КЛАВИАТУРА SOS =====
@@ -359,7 +365,7 @@ def get_support_message(category):
     }
     return messages.get(category, messages["welcome"])
 
-# ===== ОБЩИЕ РЕКОМЕНДАЦИЙ ПО ВОЗРАСТУ =====
+# ===== ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ =====
 def get_age_keyboard():
     keyboard = InlineKeyboardMarkup(row_width=2)
     keyboard.add(
@@ -767,8 +773,7 @@ async def referral(message: types.Message):
     await message.answer(
         f"👥 **Твоя реферальная ссылка:**\n"
         f"`https://t.me/{bot_username}?start={code}`\n\n"
-        "🌸 Поделись с подругой — поддержка важна для каждой мамы.\n"
-        "✨ А ещё мы подарим вам обеим +3 дня к статистике спокойствия!",
+        "🌸 Поделись с подругой — поддержка важна для каждой мамы.",
         reply_markup=main_keyboard(user_id)
     )
 
@@ -784,7 +789,7 @@ async def restore_contact(message: types.Message):
             InlineKeyboardButton("🔄 Начать восстановление", callback_data="start_restore"),
             InlineKeyboardButton("🌸 Ресурсные техники для мамы", callback_data="resource_techniques"),
             InlineKeyboardButton("🧸 Техники для малышей", callback_data="kids_restore"),
-            InlineKeyboardButton("🧑 Техники для подростков и 18+", callback_data="teen_restore"),
+            InlineKeyboardButton("🧑 Техники для подростков и детей постарше", callback_data="teen_restore"),
             InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main")
         )
         
@@ -794,7 +799,7 @@ async def restore_contact(message: types.Message):
             "🔄 **Начать восстановление** — пошаговый план (3 шага)\n"
             "🌸 **Ресурсные техники для мамы** — 5 техник для восстановления ресурса\n"
             "🧸 **Техники для малышей** — для детей 1-12 лет\n"
-            "🧑 **Техники для подростков и 18+** — 6 техник для взрослых dzieci",
+            "🧑 **Техники для подростков и детей постарше** — 6 техник для взрослых детей",
             reply_markup=keyboard
         )
         return
@@ -1018,7 +1023,7 @@ async def show_kids_restore_technique(callback_query: types.CallbackQuery):
     )
     await callback_query.answer()
 
-# ===== ТЕХНИКИ ДЛЯ ПОДРОСТКОВ И 18+ =====
+# ===== ТЕХНИКИ ДЛЯ ПОДРОСТКОВ И ДЕТЕЙ ПОСТАРШЕ =====
 @dp.callback_query_handler(lambda c: c.data == "teen_restore")
 async def teen_restore_techniques(callback_query: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(row_width=1)
@@ -1033,7 +1038,7 @@ async def teen_restore_techniques(callback_query: types.CallbackQuery):
     )
     
     await callback_query.message.edit_text(
-        "🧑 **Техники для подростков и детей 18+**\n\n"
+        "🧑 **Техники для подростков и детей постарше**\n\n"
         "Эти техники помогут восстановить контакт с подростками и взрослыми детьми.\n\n"
         "Выбери технику:",
         reply_markup=keyboard
