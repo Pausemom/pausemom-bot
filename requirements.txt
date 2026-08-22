@@ -1,3 +1,4 @@
-aiogram==2.25.1
-sqlite3
-requests
+aiogram==3.15.0
+aiosqlite==0.20.0
+python-dotenv==1.0.1
+aiofiles==23.2.1
