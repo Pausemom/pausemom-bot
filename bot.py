@@ -102,7 +102,7 @@ def main_keyboard(user_id):
         KeyboardButton("📞 Помощь")
     )
     
-    # Аффирмации — только для Premium
+    # Аффирмация дня — только для Premium
     if is_premium(user_id):
         keyboard.add(
             KeyboardButton("🌅 Аффирмация дня")
@@ -1241,6 +1241,7 @@ async def daily_affirmation(message: types.Message):
     user_id = message.from_user.id
     ADMINS = [1076773869]
     
+    # Проверяем Premium
     if user_id not in ADMINS and not is_premium(user_id):
         keyboard = InlineKeyboardMarkup(row_width=1)
         keyboard.add(
