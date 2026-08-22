@@ -110,7 +110,7 @@ def set_agreed_to_terms(user_id):
     cursor.execute("UPDATE users SET agreed_to_terms = 1 WHERE user_id = ?", (user_id,))
     conn.commit()
 
-# ===== КЛАВИАТУРЫ =====
+# ===== ГЛАВНАЯ КЛАВИАТУРА =====
 def main_keyboard(user_id):
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     
@@ -126,16 +126,14 @@ def main_keyboard(user_id):
         KeyboardButton("📚 Общие рекомендации по возрасту"),
         KeyboardButton("📞 Помощь")
     )
-    
-    # Если у пользователя есть Premium — показываем дополнительные кнопки
-    if is_premium(user_id):
-        keyboard.add(
-            KeyboardButton("🧸 Техники для малышей"),
-            KeyboardButton("🤝 Восстановить контакт (Premium)")
-        )
+    keyboard.add(
+        KeyboardButton("🧸 Техники для малышей"),
+        KeyboardButton("🤝 Восстановить контакт")
+    )
     
     return keyboard
 
+# ===== КЛАВИАТУРА SOS =====
 def sos_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     keyboard.add(
@@ -607,11 +605,11 @@ def get_advice_by_age(age_group):
         "age_1_3": {
             "title": "👶 Дети 1-3 года",
             "tips": [
-                "🧸 **Кризис 3 лет** — это нормально. Ребёнок учится говорить «нет».",
-                "🫂 **Обнимайте чаще**. Тактильный контакт важнее слов.",
-                "🔄 **Переключайте внимание**. Вместо запрета предложите альтернативу.",
-                "😌 **Сохраняйте спокойствие**. Ребёнок считывает ваши эмоции.",
-                "🗣️ **Говорите простыми фразами**. Короткие предложения, чёткие инструкции.",
+                "🧸 **Кризис 3 лет** — это нормально.",
+                "🫂 **Обнимайте чаще**.",
+                "🔄 **Переключайте внимание**.",
+                "😌 **Сохраняйте спокойствие**.",
+                "🗣️ **Говорите простыми фразами**.",
                 "⏰ **Режим дня** — основа спокойствия.",
                 "🎮 **Игра — главный способ обучения**."
             ],
@@ -629,7 +627,7 @@ def get_advice_by_age(age_group):
                 "📖 **Читайте вместе**.",
                 "⏱️ **Давайте выбор**.",
                 "👂 **Слушайте внимательно**.",
-                "🏆 **Хвалите за старания**, а не за результат.",
+                "🏆 **Хвалите за старания**.",
                 "😤 **Истерики — способ выразить эмоции**."
             ],
             "restore_techniques": [
@@ -645,8 +643,8 @@ def get_advice_by_age(age_group):
                 "🤗 **Поддерживайте дружбу**.",
                 "⏰ **Учите планировать время**.",
                 "🗣️ **Обсуждайте чувства**.",
-                "🎮 **Игры и спорт** помогают снимать напряжение.",
-                "📱 **Устанавливайте правила** использования гаджетов.",
+                "🎮 **Игры и спорт** помогают.",
+                "📱 **Устанавливайте правила**.",
                 "💪 **Хвалите за самостоятельность**."
             ],
             "restore_techniques": [
@@ -659,11 +657,11 @@ def get_advice_by_age(age_group):
             "title": "👧 Дети 11-14 лет",
             "tips": [
                 "🔥 **Подростковый кризис** — норма.",
-                "🤝 **Будьте другом**, а не надзирателем.",
+                "🤝 **Будьте другом**.",
                 "🗣️ **Не критикуйте внешность**.",
                 "📱 **Интернет-безопасность**.",
                 "👂 **Слушайте без осуждения**.",
-                "💪 **Давайте свободу** в разумных пределах.",
+                "💪 **Давайте свободу**.",
                 "💕 **Говорите о любви**."
             ],
             "restore_techniques": [
@@ -694,9 +692,9 @@ def get_advice_by_age(age_group):
             "tips": [
                 "🤝 **Отношения на равных**.",
                 "🗣️ **Советуйте, но не навязывайте**.",
-                "🫂 **Будьте опорой**, но не спасателем.",
-                "💕 **Принимайте выборы ребёнка**.",
-                "📱 **Не вмешивайтесь в личную жизнь**.",
+                "🫂 **Будьте опорой**.",
+                "💕 **Принимайте выборы**.",
+                "📱 **Не вмешивайтесь**.",
                 "💰 **Финансовая поддержка** должна уменьшаться.",
                 "👂 **Слушайте без осуждения**.",
                 "💝 **Продолжайте проявлять любовь**.",
@@ -1058,10 +1056,9 @@ async def back_to_ages(callback_query: types.CallbackQuery):
 async def premium_info(message: types.Message):
     user_id = message.from_user.id
     
-    # Проверяем, админ ли это (ваш Telegram ID)
-    ADMINS = [1076773869]  # Ваш ID
+    # Проверяем, админ ли это
+    ADMINS = [1076773869]
     
-    # Если это вы — даём доступ без оплаты
     if user_id in ADMINS:
         await message.answer(
             "👑 **Вы — создатель бота!**\n\n"
@@ -1071,17 +1068,13 @@ async def premium_info(message: types.Message):
             "✅ Модуль «Восстановление контакта»\n"
             "✅ Дневник эмоций\n"
             "✅ Письмо ребёнку\n"
-            "✅ Безопасное пространство\n\n"
-            "🔹 Кнопка «🧸 Техники для малышей» появилась в меню.\n"
-            "🔹 Кнопка «🤝 Восстановить контакт (Premium)» появилась в меню.",
+            "✅ Безопасное пространство",
             reply_markup=main_keyboard(user_id)
         )
-        # Добавляем Premium админу, если его ещё нет
         if not is_premium(user_id):
-            add_premium(user_id, 36500)  # 100 лет
+            add_premium(user_id, 36500)
         return
 
-    # Если Premium уже есть
     if is_premium(user_id):
         cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
         result = cursor.fetchone()
@@ -1090,18 +1083,11 @@ async def premium_info(message: types.Message):
             await message.answer(
                 f"✅ **У тебя уже есть Premium!**\n\n"
                 f"📅 Действует до: {end_date}\n\n"
-                "Пользуйся всеми функциями без ограничений.\n\n"
-                "✨ **Доступно:**\n"
-                "✅ Техники для малышей (1-10 лет)\n"
-                "✅ Модуль «Восстановление контакта»\n"
-                "✅ Дневник эмоций\n"
-                "✅ Письмо ребёнку\n"
-                "✅ Безопасное пространство",
+                "Пользуйся всеми функциями без ограничений.",
                 reply_markup=main_keyboard(user_id)
             )
         return
 
-    # Для обычных пользователей — предложение Premium
     keyboard = InlineKeyboardMarkup(row_width=1)
     keyboard.add(
         InlineKeyboardButton("✅ Я оплатил(а)", callback_data="confirm_payment"),
@@ -1125,11 +1111,8 @@ async def premium_info(message: types.Message):
         parse_mode="Markdown"
     )
 
-
 @dp.callback_query_handler(lambda c: c.data == "payment_help")
 async def payment_help(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    
     keyboard = InlineKeyboardMarkup(row_width=1)
     keyboard.add(
         InlineKeyboardButton("🔙 Назад к Premium", callback_data="back_to_premium")
@@ -1143,12 +1126,10 @@ async def payment_help(callback_query: types.CallbackQuery):
         "4️⃣ Оплатите удобным способом\n"
         "5️⃣ Вернитесь в бот и нажмите «✅ Я оплатил(а)»\n"
         "6️⃣ Premium активируется на 30 дней\n\n"
-        "💡 Если вы уже оплатили, просто нажмите «Я оплатил(а)»\n"
-        "🕐 После оплаты мы активируем Premium в течение 15 минут",
+        "💡 Если вы уже оплатили, просто нажмите «Я оплатил(а)»",
         reply_markup=keyboard
     )
     await callback_query.answer()
-
 
 @dp.callback_query_handler(lambda c: c.data == "back_to_premium")
 async def back_to_premium(callback_query: types.CallbackQuery):
@@ -1165,18 +1146,15 @@ async def back_to_premium(callback_query: types.CallbackQuery):
     await premium_info(fake_msg)
     await callback_query.answer()
 
-
 @dp.callback_query_handler(lambda c: c.data == "confirm_payment")
 async def confirm_payment(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     
-    # Проверяем, админ ли это
     ADMINS = [1076773869]
     if user_id in ADMINS:
         add_premium(user_id, 36500)
         await callback_query.message.edit_text(
-            "👑 **Premium активирован на 100 лет!** 🎉\n\n"
-            "Как создатель бота, вы имеете доступ ко всем функциям.",
+            "👑 **Premium активирован на 100 лет!** 🎉",
             reply_markup=main_keyboard(user_id)
         )
         await callback_query.answer()
@@ -1184,99 +1162,51 @@ async def confirm_payment(callback_query: types.CallbackQuery):
     
     if is_premium(user_id):
         await callback_query.message.edit_text(
-            "✅ **У тебя уже есть Premium!**\n\n"
-            "Пользуйся всеми функциями без ограничений.",
+            "✅ **У тебя уже есть Premium!**",
             reply_markup=main_keyboard(user_id)
         )
         await callback_query.answer()
         return
     
-    # Активируем Premium на 30 дней (в реальном боте здесь проверялась бы оплата)
     add_premium(user_id, 30)
-    
     await callback_query.message.edit_text(
         "✅ **Premium активирован на 30 дней!** 🎉\n\n"
-        "Теперь тебе доступны все функции бота:\n"
-        "✅ Техники для малышей\n"
-        "✅ Модуль «Восстановление контакта»\n"
-        "✅ Дневник эмоций\n"
-        "✅ Письмо ребёнку\n"
-        "✅ Безопасное пространство\n\n"
         "🌸 Приятного использования!",
         reply_markup=main_keyboard(user_id)
     )
     await callback_query.answer()
 
-
-# ===== МОДУЛЬ "ВОССТАНОВЛЕНИЕ КОНТАКТА" (PREMIUM) =====
-@dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт (Premium)")
-async def restore_contact(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-    
-    if not is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(row_width=1)
-        keyboard.add(
-            InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
-        )
-        await message.answer(
-            "🔒 **Этот раздел доступен только по подписке Premium.**\n\n"
-            "Оформите Premium (999 ₽/мес), чтобы получить доступ к эксклюзивному модулю «Восстановление контакта».",
-            reply_markup=keyboard
-        )
-        return
-    
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-    keyboard.add(KeyboardButton("🚀 Начать восстановление"))
-    keyboard.add(KeyboardButton("📝 Дневник эмоций"))
-    keyboard.add(KeyboardButton("🧘 Письмо ребёнку"))
-    keyboard.add(KeyboardButton("🫂 Безопасное пространство"))
-    keyboard.add(KeyboardButton("🔙 Главное меню"))
-    
-    await message.answer(
-        "🤝 **Восстановление контакта**\n\n"
-        "Этот модуль поможет тебе:\n"
-        "• Сделать паузу после срыва\n"
-        "• Найти правильные слова для примирения\n"
-        "• Восстановить доверие с ребёнком\n\n"
-        "Выбери действие:",
-        reply_markup=keyboard
-    )
-
 # ===== ТЕХНИКИ ДЛЯ МАЛЫШЕЙ (PREMIUM) =====
 @dp.message_handler(lambda message: message.text == "🧸 Техники для малышей")
 async def kids_techniques_menu(message: types.Message):
     user_id = message.from_user.id
+    ADMINS = [1076773869]
     
-    if not is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(row_width=1)
+    if user_id in ADMINS or is_premium(user_id):
+        keyboard = InlineKeyboardMarkup(row_width=3)
         keyboard.add(
-            InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
+            InlineKeyboardButton("👶 1-3 года", callback_data="kids_1_3"),
+            InlineKeyboardButton("🧒 4-6 лет", callback_data="kids_4_6"),
+            InlineKeyboardButton("👦 7-10 лет", callback_data="kids_7_10")
         )
+        keyboard.add(
+            InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main")
+        )
+        
         await message.answer(
-            "🔒 **Техники для малышей доступны только Premium-пользователям.**\n\n"
-            "Оформите Premium (999 ₽/мес) и получите доступ к техникам для детей от 1 до 10 лет.\n\n"
-            "✨ **Что внутри:**\n"
-            "👶 Техники для 1-3 лет\n"
-            "🧒 Техники для 4-6 лет\n"
-            "👦 Техники для 7-10 лет",
+            "🧸 **Техники для малышей**\n\n"
+            "Выбери возраст:",
             reply_markup=keyboard
         )
         return
     
-    keyboard = InlineKeyboardMarkup(row_width=3)
+    keyboard = InlineKeyboardMarkup(row_width=1)
     keyboard.add(
-        InlineKeyboardButton("👶 1-3 года", callback_data="kids_1_3"),
-        InlineKeyboardButton("🧒 4-6 лет", callback_data="kids_4_6"),
-        InlineKeyboardButton("👦 7-10 лет", callback_data="kids_7_10")
+        InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
     )
-    keyboard.add(
-        InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main")
-    )
-    
     await message.answer(
-        "🧸 **Техники для малышей**\n\n"
-        "Здесь собраны специальные техники, которые помогут восстановить контакт с маленьким ребёнком.\n\n"
-        "Выбери возраст:",
+        "🔒 **Техники для малышей доступны только Premium-пользователям.**\n\n"
+        "Оформите Premium (999 ₽/мес) и получите доступ к техникам для детей от 1 до 10 лет.",
         reply_markup=keyboard
     )
 
@@ -1325,17 +1255,45 @@ async def back_to_kids(callback_query: types.CallbackQuery):
     )
     await callback_query.answer()
 
+# ===== МОДУЛЬ "ВОССТАНОВЛЕНИЕ КОНТАКТА" (PREMIUM) =====
+@dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт")
+async def restore_contact(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    ADMINS = [1076773869]
+    
+    if not (user_id in ADMINS or is_premium(user_id)):
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        keyboard.add(
+            InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
+        )
+        await message.answer(
+            "🔒 **Этот раздел доступен только по подписке Premium.**\n\n"
+            "Оформите Premium (999 ₽/мес), чтобы получить доступ к эксклюзивному модулю «Восстановление контакта».",
+            reply_markup=keyboard
+        )
+        return
+    
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+    keyboard.add(KeyboardButton("🚀 Начать восстановление"))
+    keyboard.add(KeyboardButton("📝 Дневник эмоций"))
+    keyboard.add(KeyboardButton("🧘 Письмо ребёнку"))
+    keyboard.add(KeyboardButton("🫂 Безопасное пространство"))
+    keyboard.add(KeyboardButton("🔙 Главное меню"))
+    
+    await message.answer(
+        "🤝 **Восстановление контакта**\n\n"
+        "Этот модуль поможет тебе:\n"
+        "• Сделать паузу после срыва\n"
+        "• Найти правильные слова для примирения\n"
+        "• Восстановить доверие с ребёнком\n\n"
+        "Выбери действие:",
+        reply_markup=keyboard
+    )
+
 # ===== НАЧАЛО ВОССТАНОВЛЕНИЯ =====
 @dp.message_handler(lambda message: message.text == "🚀 Начать восстановление")
 async def start_restore(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
-    
-    if not is_premium(user_id):
-        await message.answer(
-            "🔒 Этот раздел доступен только Premium-пользователям.",
-            reply_markup=main_keyboard(user_id)
-        )
-        return
     
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     keyboard.add(KeyboardButton("✅ Прочитала, дай следующий шаг"))
@@ -1343,7 +1301,7 @@ async def start_restore(message: types.Message, state: FSMContext):
     
     await message.answer(
         "🛑 **Шаг 1 из 4: Стоп-сигнал**\n\n"
-        "Ты уже осознала, что наговорила лишнего. Ты продышалась.\n\n"
+        "Ты уже осознала, что наговорила лишнего.\n\n"
         "🔹 **Что делать:**\n"
         "Ребёнок поставил границу. Самое важное сейчас — **не преследовать его**.\n\n"
         "🚫 Не стучись в дверь.\n"
@@ -1439,7 +1397,6 @@ async def diary_menu(message: types.Message):
     
     await message.answer(
         "📝 **Дневник эмоций**\n\n"
-        "Это твоё личное пространство для записи чувств и мыслей.\n\n"
         "Выбери действие:",
         reply_markup=keyboard
     )
@@ -1456,7 +1413,7 @@ async def diary_write(message: types.Message, state: FSMContext):
         await message.answer(
             f"📝 **Ты уже записала сегодня:**\n\n"
             f"«{result[0]}»\n\n"
-            "Хочешь добавить ещё одну запись? Напиши её одним сообщением.",
+            "Хочешь добавить ещё одну запись?",
             reply_markup=main_keyboard(user_id)
         )
     else:
@@ -1527,11 +1484,9 @@ async def letter_exercise(message: types.Message, state: FSMContext):
         "Это письмо — только для тебя.\n\n"
         "Напиши письмо своему ребёнку, начиная с фразы:\n\n"
         "«Мой любимый ребёнок...»\n\n"
-        "Не редактируй себя. Пиши всё, что чувствуешь.\n\n"
         "Когда закончишь — прочитай письмо вслух себе.\n"
         "А потом... сожги его или удали.\n\n"
-        "Ты имеешь право на свои чувства. ❤️\n\n"
-        "Напиши письмо одним сообщением:",
+        "Ты имеешь право на свои чувства. ❤️",
         reply_markup=main_keyboard(user_id)
     )
     await state.set_state("letter_waiting")
@@ -1573,7 +1528,7 @@ async def safe_space_menu(message: types.Message, state: FSMContext):
             "🫂 **Твоё безопасное пространство**\n\n"
             f"📍 **Место:** {place}\n"
             f"📋 **Правила:** {rules}\n\n"
-            "Хочешь обновить настройки? Нажми кнопку ниже.",
+            "Хочешь обновить настройки?",
             reply_markup=InlineKeyboardMarkup().add(
                 InlineKeyboardButton("🔄 Обновить настройки", callback_data="safe_space_update")
             )
@@ -1678,10 +1633,15 @@ async def help_menu(message: types.Message):
         parse_mode="Markdown"
     )
 
+# ===== НАЗАД =====
+@dp.message_handler(lambda message: message.text == "🔙 Главное меню")
+async def back_to_menu(message: types.Message):
+    await message.answer("Главное меню:", reply_markup=main_keyboard(message.from_user.id))
+
 # ===== АДМИН-ПАНЕЛЬ =====
 @dp.message_handler(commands=['admin'])
 async def admin_command(message: types.Message):
-    ADMINS = [1076773869]  # Ваш Telegram ID
+    ADMINS = [1076773869]
     
     user_id = message.from_user.id
     if user_id not in ADMINS:
@@ -1760,11 +1720,6 @@ async def admin_stats(message: types.Message):
         f"📈 Бот растёт! 🌸",
         reply_markup=main_keyboard(user_id)
     )
-
-# ===== НАЗАД =====
-@dp.message_handler(lambda message: message.text == "🔙 Главное меню")
-async def back_to_menu(message: types.Message):
-    await message.answer("Главное меню:", reply_markup=main_keyboard(message.from_user.id))
 
 if __name__ == '__main__':
     from aiogram import executor
