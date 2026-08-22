@@ -359,7 +359,7 @@ def get_support_message(category):
     }
     return messages.get(category, messages["welcome"])
 
-# ===== ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ =====
+# ===== ОБЩИЕ РЕКОМЕНДАЦИЙ ПО ВОЗРАСТУ =====
 def get_age_keyboard():
     keyboard = InlineKeyboardMarkup(row_width=2)
     keyboard.add(
@@ -794,7 +794,7 @@ async def restore_contact(message: types.Message):
             "🔄 **Начать восстановление** — пошаговый план (3 шага)\n"
             "🌸 **Ресурсные техники для мамы** — 5 техник для восстановления ресурса\n"
             "🧸 **Техники для малышей** — для детей 1-12 лет\n"
-            "🧑 **Техники для подростков и 18+** — 6 техник для взрослых детей",
+            "🧑 **Техники для подростков и 18+** — 6 техник для взрослых dzieci",
             reply_markup=keyboard
         )
         return
