@@ -1492,7 +1492,15 @@ async def admin_stats(message: Message):
         f"📈 Бот растёт! 🌸",
         reply_markup=main_keyboard(user_id)
     )
-
+# ================= ВОЗВРАТ В ГЛАВНОЕ МЕНЮ =================
+@router.message(F.text == "🔙 Главное меню")
+async def back_to_menu(message: Message, state: FSMContext):
+    # Если пользователь был в процессе восстановления (в состоянии FSM) — сбрасываем это состояние
+    await state.clear()
+    await message.answer(
+        "🌸 <b>Главное меню:</b>\n\nВыберите, что вам нужно:",
+        reply_markup=main_keyboard(message.from_user.id)
+    )
 # ================= ЗАПУСК =================
 async def on_startup():
     await create_tables()
