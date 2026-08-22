@@ -1,206 +1,190 @@
 import logging
-import random
-import sqlite3
-import os
-from datetime import datetime, timedelta
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
 import asyncio
+import hashlib
+import os
+from datetime import datetime, timedelta, date
 
+import aiosqlite
+from aiogram import Bot, Dispatcher, Router, F
+from aiogram.types import (
+    Message, CallbackQuery,
+    ReplyKeyboardMarkup, KeyboardButton,
+    InlineKeyboardMarkup, InlineKeyboardButton
+)
+from aiogram.filters import Command, CommandStart, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.default import DefaultBotProperties
+from dotenv import load_dotenv
+
+# Загружаем секреты из файла .env
+load_dotenv()
+
+# ================= НАСТРОЙКИ =================
 API_TOKEN = os.getenv('BOT_TOKEN')
+ADMINS = [int(os.getenv('ADMIN_ID', 1076773869))]
 
-conn = sqlite3.connect('pause_bot.db', check_same_thread=False)
-cursor = conn.cursor()
+DB_PATH = "pause_bot.db"
 
-# ===== СОЗДАНИЕ ТАБЛИЦ =====
-cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    username TEXT,
-    first_name TEXT,
-    reg_date DATE,
-    subscription_end DATE,
-    total_sos INTEGER DEFAULT 0,
-    no_cry_days INTEGER DEFAULT 0,
-    last_cry_date DATE,
-    referral_code TEXT,
-    referrer_id INTEGER,
-    last_affirmation DATE,
-    agreed_to_terms BOOLEAN DEFAULT 0
-)''')
-conn.commit()
+# TODO: Замените ссылки на реальные юридические документы
+POLICY_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ПОЛИТИКА/edit"
+OFFER_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ОФЕРТА/edit"
+CONSENT_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_СОГЛАСИЕ/edit"
 
-logging.basicConfig(level=logging.INFO)
-bot = Bot(token=API_TOKEN)
+# Инициализация
+bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
+router = Router()
 storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
+dp = Dispatcher(storage=storage)
 
-# ===== ID АДМИНА =====
-ADMINS = [1076773869]  # Ваш Telegram ID
+# ================= БАЗА ДАННЫХ =================
+async def create_tables():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute('''CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            first_name TEXT,
+            reg_date DATE,
+            subscription_end DATE,
+            total_sos INTEGER DEFAULT 0,
+            no_cry_days INTEGER DEFAULT 0,
+            last_cry_date DATE,
+            referral_code TEXT,
+            referrer_id INTEGER,
+            last_affirmation DATE,
+            agreed_to_terms BOOLEAN DEFAULT 0
+        )''')
+        await db.commit()
 
-# ===== СОСТОЯНИЯ =====
+async def get_user(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+        return await cursor.fetchone()
+
+async def is_premium(user_id):
+    if user_id in ADMINS:
+        return True
+    user = await get_user(user_id)
+    if user and user[4]:
+        try:
+            end_date = datetime.strptime(user[4], '%Y-%m-%d').date()
+            if end_date >= date.today():
+                return True
+        except:
+            pass
+    return False
+
+async def add_premium(user_id, days=30):
+    end_date = (date.today() + timedelta(days=days)).strftime('%Y-%m-%d')
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET subscription_end = ? WHERE user_id = ?", (end_date, user_id))
+        await db.commit()
+
+async def generate_referral_code(user_id):
+    code = hashlib.md5(str(user_id).encode()).hexdigest()[:8]
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET referral_code = ? WHERE user_id = ?", (code, user_id))
+        await db.commit()
+    return code
+
+async def has_agreed_to_terms(user_id):
+    user = await get_user(user_id)
+    if user:
+        return user[12] == 1
+    return False
+
+async def set_agreed_to_terms(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET agreed_to_terms = 1 WHERE user_id = ?", (user_id,))
+        await db.commit()
+
+# ================= КЛАВИАТУРЫ =================
+def main_keyboard(user_id):
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🆘 SOS-Пауза"), KeyboardButton(text="💎 Premium")],
+            [KeyboardButton(text="👥 Пригласить подругу"), KeyboardButton(text="💝 Нужные слова для мамы")],
+            [KeyboardButton(text="🧸 Техники для малышей"), KeyboardButton(text="🤝 Восстановить контакт")],
+            [KeyboardButton(text="📚 Общие рекомендации по возрасту"), KeyboardButton(text="📞 Помощь")],
+            [KeyboardButton(text="🌅 Аффирмация дня")]
+        ],
+        resize_keyboard=True, row_width=2
+    )
+
+def sos_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🔙 Главное меню")],
+            [KeyboardButton(text="🌬️ Дыхание 4-7-8"), KeyboardButton(text="🧘 Осознанное дыхание")],
+            [KeyboardButton(text="👀 5-4-3-2-1"), KeyboardButton(text="🤗 Обнять себя")],
+            [KeyboardButton(text="💧 Умыться водой"), KeyboardButton(text="🦶 Стойка на ногах")],
+            [KeyboardButton(text="🧠 Сканирование тела"), KeyboardButton(text="☀️ Луч света")],
+            [KeyboardButton(text="🌊 Волна дыхания"), KeyboardButton(text="💭 Наблюдатель")]
+        ],
+        resize_keyboard=True, row_width=2
+    )
+
+# ================= СОСТОЯНИЯ =================
 class Form(StatesGroup):
     restore_step1 = State()
     restore_step2 = State()
     restore_step3 = State()
-    waiting_for_terms = State()
 
-# ===== ПРОВЕРКА PREMIUM (С УЧЁТОМ АДМИНА) =====
-def is_premium(user_id):
-    # Админы всегда имеют Premium
-    if user_id in ADMINS:
-        return True
-    try:
-        cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
-        result = cursor.fetchone()
-        if result and result[0]:
-            end_date = datetime.strptime(result[0], '%Y-%m-%d')
-            if end_date >= datetime.now().date():
-                return True
-        return False
-    except:
-        return False
-
-def add_premium(user_id, days=30):
-    end_date = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
-    cursor.execute("UPDATE users SET subscription_end = ? WHERE user_id = ?", (end_date, user_id))
-    conn.commit()
-
-def generate_referral_code(user_id):
-    import hashlib
-    code = hashlib.md5(str(user_id).encode()).hexdigest()[:8]
-    cursor.execute("UPDATE users SET referral_code = ? WHERE user_id = ?", (code, user_id))
-    conn.commit()
-    return code
-
-def has_agreed_to_terms(user_id):
-    cursor.execute("SELECT agreed_to_terms FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    if result:
-        return result[0] == 1
-    return False
-
-def set_agreed_to_terms(user_id):
-    cursor.execute("UPDATE users SET agreed_to_terms = 1 WHERE user_id = ?", (user_id,))
-    conn.commit()
-
-# ===== ГЛАВНАЯ КЛАВИАТУРА =====
-def main_keyboard(user_id):
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    
-    keyboard.add(
-        KeyboardButton("🆘 SOS-Пауза"),
-        KeyboardButton("💎 Premium")
-    )
-    keyboard.add(
-        KeyboardButton("👥 Пригласить подругу"),
-        KeyboardButton("💝 Нужные слова для мамы")
-    )
-    keyboard.add(
-        KeyboardButton("🧸 Техники для малышей"),
-        KeyboardButton("🤝 Восстановить контакт")
-    )
-    keyboard.add(
-        KeyboardButton("📚 Общие рекомендации по возрасту"),
-        KeyboardButton("📞 Помощь")
-    )
-    
-    # Аффирмация дня — видна всем, но доступ только Premium/админам
-    keyboard.add(
-        KeyboardButton("🌅 Аффирмация дня")
-    )
-    
-    return keyboard
-
-# ===== КЛАВИАТУРА SOS =====
-def sos_keyboard():
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    
-    keyboard.add(
-        KeyboardButton("🔙 Главное меню")
-    )
-    keyboard.add(
-        KeyboardButton("🌬️ Дыхание 4-7-8"),
-        KeyboardButton("🧘 Осознанное дыхание")
-    )
-    keyboard.add(
-        KeyboardButton("👀 5-4-3-2-1"),
-        KeyboardButton("🤗 Обнять себя")
-    )
-    keyboard.add(
-        KeyboardButton("💧 Умыться водой"),
-        KeyboardButton("🦶 Стойка на ногах")
-    )
-    keyboard.add(
-        KeyboardButton("🧠 Сканирование тела"),
-        KeyboardButton("☀️ Луч света")
-    )
-    keyboard.add(
-        KeyboardButton("🌊 Волна дыхания"),
-        KeyboardButton("💭 Наблюдатель")
-    )
-    
-    return keyboard
-
-# ===== ДИСКЛЕЙМЕР =====
+# ================= ДАННЫЕ =================
 DISCLAIMER = (
-    "📋 **О боте PauseMomBot**\n\n"
+    "📋 <b>О боте PauseMomBot</b>\n\n"
     "PauseMomBot — это информационный помощник для родителей. "
     "Все техники и рекомендации носят ознакомительный и общеразвивающий характер.\n\n"
-    "⚠️ **Важно:**\n"
+    "⚠️ <b>Важно:</b>\n"
     "• Бот не является медицинским или психотерапевтическим инструментом\n"
     "• Бот не ставит диагнозы и не назначает лечение\n"
     "• Бот не заменяет профессиональную помощь психолога или врача\n\n"
     "📱 Поддержка: @PauseMomSupport_bot"
 )
 
-# ===== ТЕХНИКИ ДЛЯ МАЛЫШЕЙ =====
 def get_kids_techniques(age_group):
     techniques = {
         "1_3": {
             "title": "👶 Техники для детей 1-3 года",
             "tips": [
-                "🤗 **Техника «Обними-меня»**\n\nКогда ребёнок расстроен — протяни ему руки.",
-                "🔄 **Техника «Переключение»**\n\nОтвлеки внимание ребёнка на что-то интересное.",
-                "🧸 **Техника «Игрушка-мирилка»**\n\nВозьми его любимую игрушку и помиритесь через неё.",
-                "📖 **Техника «Сказка про меня»**\n\nРасскажи историю о зверюшке, который помирился с мамой."
+                "🤗 <b>Техника «Обними-меня»</b>\n\nКогда ребёнок расстроен — протяни ему руки.",
+                "🔄 <b>Техника «Переключение»</b>\n\nОтвлеки внимание ребёнка на что-то интересное.",
+                "🧸 <b>Техника «Игрушка-мирилка»</b>\n\nВозьми его любимую игрушку и помиритесь через неё.",
+                "📖 <b>Техника «Сказка про меня»</b>\n\nРасскажи историю о зверюшке, который помирился с мамой."
             ]
         },
         "4_6": {
             "title": "🧒 Техники для детей 4-6 лет",
             "tips": [
-                "🤗 **Техника «Обними-меня»**\n\nСядь на уровень ребёнка и протяни руки.",
-                "🎨 **Техника «Рисуем обиду»**\n\nНарисуйте злость и порвите рисунок.",
-                "🎭 **Техника «Игра в чувства»**\n\nНазывай чувства, ребёнок показывает их лицом.",
-                "🌊 **Техника «Дыхание вместе»**\n\nПодышите вместе как волны океана.",
-                "🧩 **Техника «Пять минут вместе»**\n\nПроведи 5 минут только с ребёнком."
+                "🤗 <b>Техника «Обними-меня»</b>\n\nСядь на уровень ребёнка и протяни руки.",
+                "🎨 <b>Техника «Рисуем обиду»</b>\n\nНарисуйте злость и порвите рисунок.",
+                "🎭 <b>Техника «Игра в чувства»</b>\n\nНазывай чувства, ребёнок показывает их лицом.",
+                "🌊 <b>Техника «Дыхание вместе»</b>\n\nПодышите вместе как волны океана.",
+                "🧩 <b>Техника «Пять минут вместе»</b>\n\nПроведи 5 минут только с ребёнком."
             ]
         },
         "7_9": {
             "title": "👦 Техники для детей 7-9 лет",
             "tips": [
-                "🤗 **Техника «Обними-меня»**\n\nСпроси: «Обняться или поговорить?»",
-                "🎨 **Техника «Рисуем обиду»**\n\nНарисуй свои чувства.",
-                "🎭 **Техника «Игра в чувства»**\n\nПоиграйте в угадывание эмоций.",
-                "🧩 **Техника «Стоп-фраза»**\n\nПридумайте слово, которое останавливает ссору.",
-                "🔄 **Техника «Круг благодарности»**\n\nНапишите друг другу, за что вы благодарны."
+                "🤗 <b>Техника «Обними-меня»</b>\n\nСпроси: «Обняться или поговорить?»",
+                "🎨 <b>Техника «Рисуем обиду»</b>\n\nНарисуй свои чувства.",
+                "🎭 <b>Техника «Игра в чувства»</b>\n\nПоиграйте в угадывание эмоций.",
+                "🧩 <b>Техника «Стоп-фраза»</b>\n\nПридумайте слово, которое останавливает ссору.",
+                "🔄 <b>Техника «Круг благодарности»</b>\n\nНапишите друг другу, за что вы благодарны."
             ]
         },
         "10_12": {
             "title": "👦 Техники для детей 10-12 лет",
             "tips": [
-                "💬 **Техника «Я-сообщение +»**\n\n«Я чувствую... (свои чувства) Потому что... (причина) Я знаю, что ты... (чувства ребёнка) Давай... (предложение)»\n\nПример: «Я чувствую усталость, потому что у меня был тяжёлый день. Я знаю, что ты тоже устал. Давай вместе почитаем книгу и обнимемся?»",
-                "✨ **Техника «Светящиеся руки»**\n\n1️⃣ Потри ладони друг о друга, чтобы они стали тёплыми.\n2️⃣ Представь, что от них исходит тёплый золотистый свет.\n3️⃣ Подойди к ребёнку и мягко положи руку на его плечо.\n4️⃣ Скажи: «Я рядом. Я тебя люблю». Постой так 10 секунд.\n\n💡 Тепло рук передаёт любовь без слов.",
-                "☁️ **Техника «Облако мира»**\n\n1️⃣ Закрой глаза.\n2️⃣ Представь большое пушистое облако.\n3️⃣ Мысленно положи в это облако свою обиду, гнев, раздражение.\n4️⃣ Посмотри, как облако медленно уплывает, унося все негативные чувства.\n5️⃣ Открой глаза и скажи: «Я отпускаю всё плохое. Я начинаю заново»."
+                "💬 <b>Техника «Я-сообщение +»</b>\n\n«Я чувствую... Потому что... Я знаю, что ты... Давай...»\n\nПример: «Я чувствую усталость, потому что у меня был тяжёлый день. Я знаю, что ты тоже устал. Давай вместе почитаем книгу и обнимемся?»",
+                "✨ <b>Техника «Светящиеся руки»</b>\n\n1️⃣ Потри ладони.\n2️⃣ Представь тёплый золотистый свет.\n3️⃣ Положи руку на плечо ребёнка.\n4️⃣ Скажи: «Я рядом. Я тебя люблю».",
+                "☁️ <b>Техника «Облако мира»</b>\n\n1️⃣ Закрой глаза.\n2️⃣ Представь пушистое облако.\n3️⃣ Положи туда обиду и гнев.\n4️⃣ Смотри, как облако уплывает."
             ]
         }
     }
     return techniques.get(age_group, techniques["4_6"])
 
-# ===== 100 АФФИРМАЦИЙ =====
 def get_daily_affirmation():
     affirmations = [
         "Я — хорошая мама, и я делаю всё, что в моих силах.",
@@ -306,13 +290,11 @@ def get_daily_affirmation():
         "Я умею находить время для своих увлечений.",
         "Сегодня я буду слушать свои желания."
     ]
-    
     day_of_year = datetime.now().timetuple().tm_yday
     if datetime.now().year % 4 == 0 and day_of_year > 60:
         day_of_year -= 1
     return affirmations[day_of_year % 100]
 
-# ===== ПОДДЕРЖИВАЮЩИЕ СООБЩЕНИЯ ДЛЯ МАМЫ =====
 def get_support_message(category):
     messages = {
         "welcome": {
@@ -370,24 +352,16 @@ def get_support_message(category):
     }
     return messages.get(category, messages["welcome"])
 
-# ===== ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ =====
 def get_age_keyboard():
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(
-        InlineKeyboardButton("👶 1-3 года", callback_data="age_1_3"),
-        InlineKeyboardButton("🧒 4-6 лет", callback_data="age_4_6")
-    )
-    keyboard.add(
-        InlineKeyboardButton("👦 7-10 лет", callback_data="age_7_10"),
-        InlineKeyboardButton("👧 11-14 лет", callback_data="age_11_14")
-    )
-    keyboard.add(
-        InlineKeyboardButton("🧑 15-18 лет", callback_data="age_15_18"),
-        InlineKeyboardButton("👩 18+ лет", callback_data="age_18_plus")
-    )
-    keyboard.add(
-        InlineKeyboardButton("📚 Общие рекомендации", callback_data="age_general")
-    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👶 1-3 года", callback_data="age_1_3"),
+         InlineKeyboardButton(text="🧒 4-6 лет", callback_data="age_4_6")],
+        [InlineKeyboardButton(text="👦 7-10 лет", callback_data="age_7_10"),
+         InlineKeyboardButton(text="👧 11-14 лет", callback_data="age_11_14")],
+        [InlineKeyboardButton(text="🧑 15-18 лет", callback_data="age_15_18"),
+         InlineKeyboardButton(text="👩 18+ лет", callback_data="age_18_plus")],
+        [InlineKeyboardButton(text="📚 Общие рекомендации", callback_data="age_general")]
+    ])
     return keyboard
 
 def get_advice_by_age(age_group):
@@ -395,171 +369,179 @@ def get_advice_by_age(age_group):
         "age_1_3": {
             "title": "👶 Дети 1-3 года",
             "tips": [
-                "🧸 **Кризис 3 лет** — это нормально.",
-                "🫂 **Обнимайте чаще**.",
-                "🔄 **Переключайте внимание**.",
-                "😌 **Сохраняйте спокойствие**.",
-                "🗣️ **Говорите простыми фразами**.",
-                "⏰ **Режим дня** — основа спокойствия.",
-                "🎮 **Игра — главный способ обучения**."
+                "🧸 <b>Кризис 3 лет</b> — это нормально.",
+                "🫂 <b>Обнимайте чаще</b>.",
+                "🔄 <b>Переключайте внимание</b>.",
+                "😌 <b>Сохраняйте спокойствие</b>.",
+                "🗣️ <b>Говорите простыми фразами</b>.",
+                "⏰ <b>Режим дня</b> — основа спокойствия.",
+                "🎮 <b>Игра</b> — главный способ обучения."
             ],
             "restore_techniques": [
-                "🤗 **Обними-меня**",
-                "🔄 **Переключение**",
-                "🧸 **Игрушка-мирилка**"
+                "🤗 <b>Обними-меня</b>",
+                "🔄 <b>Переключение</b>",
+                "🧸 <b>Игрушка-мирилка</b>"
             ]
         },
         "age_4_6": {
             "title": "🧒 Дети 4-6 лет",
             "tips": [
-                "🎨 **Развивайте фантазию**.",
-                "🤝 **Учите договариваться**.",
-                "📖 **Читайте вместе**.",
-                "⏱️ **Давайте выбор**.",
-                "👂 **Слушайте внимательно**.",
-                "🏆 **Хвалите за старания**.",
-                "😤 **Истерики — способ выразить эмоции**."
+                "🎨 <b>Развивайте фантазию</b>.",
+                "🤝 <b>Учите договариваться</b>.",
+                "📖 <b>Читайте вместе</b>.",
+                "⏱️ <b>Давайте выбор</b>.",
+                "👂 <b>Слушайте внимательно</b>.",
+                "🏆 <b>Хвалите за старания</b>.",
+                "😤 <b>Истерики</b> — способ выразить эмоции."
             ],
             "restore_techniques": [
-                "🤗 **Обними-меня**",
-                "🎨 **Рисуем обиду**",
-                "🌊 **Дыхание вместе**"
+                "🤗 <b>Обними-меня</b>",
+                "🎨 <b>Рисуем обиду</b>",
+                "🌊 <b>Дыхание вместе</b>"
             ]
         },
         "age_7_10": {
             "title": "👦 Дети 7-10 лет",
             "tips": [
-                "📚 **Школа — новый стресс**.",
-                "🤗 **Поддерживайте дружбу**.",
-                "⏰ **Учите планировать время**.",
-                "🗣️ **Обсуждайте чувства**.",
-                "🎮 **Игры и спорт** помогают.",
-                "📱 **Устанавливайте правила**.",
-                "💪 **Хвалите за самостоятельность**."
+                "📚 <b>Школа</b> — новый стресс.",
+                "🤗 <b>Поддерживайте дружбу</b>.",
+                "⏰ <b>Учите планировать время</b>.",
+                "🗣️ <b>Обсуждайте чувства</b>.",
+                "🎮 <b>Игры и спорт</b> помогают.",
+                "📱 <b>Устанавливайте правила</b>.",
+                "💪 <b>Хвалите за самостоятельность</b>."
             ],
             "restore_techniques": [
-                "🤗 **Обними-меня**",
-                "🎨 **Рисуем обиду**",
-                "🧩 **Стоп-фраза**"
+                "🤗 <b>Обними-меня</b>",
+                "🎨 <b>Рисуем обиду</b>",
+                "🧩 <b>Стоп-фраза</b>"
             ]
         },
         "age_11_14": {
             "title": "👧 Дети 11-14 лет",
             "tips": [
-                "🔥 **Подростковый кризис** — норма.",
-                "🤝 **Будьте другом**.",
-                "🗣️ **Не критикуйте внешность**.",
-                "📱 **Интернет-безопасность**.",
-                "👂 **Слушайте без осуждения**.",
-                "💪 **Давайте свободу**.",
-                "💕 **Говорите о любви**."
+                "🔥 <b>Подростковый кризис</b> — норма.",
+                "🤝 <b>Будьте другом</b>.",
+                "🗣️ <b>Не критикуйте внешность</b>.",
+                "📱 <b>Интернет-безопасность</b>.",
+                "👂 <b>Слушайте без осуждения</b>.",
+                "💪 <b>Давайте свободу</b>.",
+                "💕 <b>Говорите о любви</b>."
             ],
             "restore_techniques": [
-                "🛑 **Стоп-сигнал**",
-                "✍️ **Я-сообщение**",
-                "🍲 **Действие без слов**"
+                "🛑 <b>Стоп-сигнал</b>",
+                "✍️ <b>Я-сообщение</b>",
+                "🍲 <b>Действие без слов</b>"
             ]
         },
         "age_15_18": {
             "title": "🧑 Дети 15-18 лет",
             "tips": [
-                "🎯 **Поддерживайте выбор профессии**.",
-                "🤝 **Отношения на равных**.",
-                "🗣️ **Обсуждайте будущее**.",
-                "💕 **Говорите о чувствах**.",
-                "📱 **Доверяйте, но проверяйте**.",
-                "💪 **Поддерживайте самостоятельность**.",
-                "❤️ **Будьте рядом**."
+                "🎯 <b>Поддерживайте выбор профессии</b>.",
+                "🤝 <b>Отношения на равных</b>.",
+                "🗣️ <b>Обсуждайте будущее</b>.",
+                "💕 <b>Говорите о чувствах</b>.",
+                "📱 <b>Доверяйте, но проверяйте</b>.",
+                "💪 <b>Поддерживайте самостоятельность</b>.",
+                "❤️ <b>Будьте рядом</b>."
             ],
             "restore_techniques": [
-                "🛑 **Стоп-сигнал**",
-                "✍️ **Я-сообщение**",
-                "🍲 **Действие без слов**"
+                "🛑 <b>Стоп-сигнал</b>",
+                "✍️ <b>Я-сообщение</b>",
+                "🍲 <b>Действие без слов</b>"
             ]
         },
         "age_18_plus": {
             "title": "👩 Взрослые дети (18+ лет)",
             "tips": [
-                "🤝 **Отношения на равных**.",
-                "🗣️ **Советуйте, но не навязывайте**.",
-                "🫂 **Будьте опорой**.",
-                "💕 **Принимайте выборы**.",
-                "📱 **Не вмешивайтесь**.",
-                "💰 **Финансовая поддержка** должна уменьшаться.",
-                "👂 **Слушайте без осуждения**.",
-                "💝 **Продолжайте проявлять любовь**.",
-                "🔄 **Пересмотрите роль «родитель»**.",
-                "🙏 **Прощайте ошибки**.",
-                "💬 **Учитесь диалогу**.",
-                "🌟 **Радуйтесь успехам**."
+                "🤝 <b>Отношения на равных</b>.",
+                "🗣️ <b>Советуйте, но не навязывайте</b>.",
+                "🫂 <b>Будьте опорой</b>.",
+                "💕 <b>Принимайте выборы</b>.",
+                "📱 <b>Не вмешивайтесь</b>.",
+                "💰 <b>Финансовая поддержка</b> должна уменьшаться.",
+                "👂 <b>Слушайте без осуждения</b>.",
+                "💝 <b>Продолжайте проявлять любовь</b>.",
+                "🔄 <b>Пересмотрите роль «родитель»</b>.",
+                "🙏 <b>Прощайте ошибки</b>.",
+                "💬 <b>Учитесь диалогу</b>.",
+                "🌟 <b>Радуйтесь успехам</b>."
             ],
             "restore_techniques": [
-                "🛑 **Стоп-сигнал**",
-                "✍️ **Я-сообщение**",
-                "🍲 **Действие без слов**"
+                "🛑 <b>Стоп-сигнал</b>",
+                "✍️ <b>Я-сообщение</b>",
+                "🍲 <b>Действие без слов</b>"
             ]
         },
         "age_general": {
             "title": "📚 Общие рекомендации для всех возрастов",
             "tips": [
-                "❤️ **Безусловная любовь**.",
-                "👂 **Слушайте активно**.",
-                "😌 **Контролируйте свои эмоции**.",
-                "🔄 **Устанавливайте чёткие границы**.",
-                "🤗 **Обнимайте каждый день**.",
-                "📖 **Читайте и обсуждайте**.",
-                "🙏 **Будьте примером**."
+                "❤️ <b>Безусловная любовь</b>.",
+                "👂 <b>Слушайте активно</b>.",
+                "😌 <b>Контролируйте свои эмоции</b>.",
+                "🔄 <b>Устанавливайте чёткие границы</b>.",
+                "🤗 <b>Обнимайте каждый день</b>.",
+                "📖 <b>Читайте и обсуждайте</b>.",
+                "🙏 <b>Будьте примером</b>."
             ],
             "restore_techniques": [
-                "🛑 **Стоп-сигнал**",
-                "✍️ **Я-сообщение**",
-                "🍲 **Действие без слов**"
+                "🛑 <b>Стоп-сигнал</b>",
+                "✍️ <b>Я-сообщение</b>",
+                "🍲 <b>Действие без слов</b>"
             ]
         }
     }
     return advice.get(age_group, advice["age_general"])
 
-# ===== ЮРИДИЧЕСКИЙ БЛОК =====
-POLICY_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ПОЛИТИКА/edit"
-OFFER_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ОФЕРТА/edit"
-CONSENT_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_СОГЛАСИЕ/edit"
-
-# ===== КОМАНДА /START =====
-@dp.message_handler(commands=['start'])
-async def start(message: types.Message):
+# ================= КОМАНДА START =================
+@router.message(CommandStart())
+async def cmd_start(message: Message, state: FSMContext):
     user_id = message.from_user.id
     username = message.from_user.username or "Аноним"
     first_name = message.from_user.first_name or "Мама"
 
-    args = message.get_args()
-    if args:
-        cursor.execute("SELECT user_id FROM users WHERE referral_code = ?", (args,))
-        referrer = cursor.fetchone()
-        if referrer and referrer[0] != user_id:
-            cursor.execute("UPDATE users SET referrer_id = ? WHERE user_id = ?", (referrer[0], user_id))
-            cursor.execute("UPDATE users SET no_cry_days = no_cry_days + 3 WHERE user_id = ?", (referrer[0],))
-            conn.commit()
-            await bot.send_message(referrer[0], "👏 По твоей ссылке пришла новая мама!")
+    # Обработка реферальной ссылки
+    args = message.text.split()
+    if len(args) > 1:
+        ref_code = args[1]
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute("SELECT user_id FROM users WHERE referral_code = ?", (ref_code,))
+            referrer = await cursor.fetchone()
+            if referrer and referrer[0] != user_id:
+                await db.execute("UPDATE users SET referrer_id = ? WHERE user_id = ?", (referrer[0], user_id))
+                await db.execute("UPDATE users SET no_cry_days = no_cry_days + 3 WHERE user_id = ?", (referrer[0],))
+                await db.commit()
+                try:
+                    await bot.send_message(referrer[0], "👏 По твоей ссылке пришла новая мама!")
+                except:
+                    pass
 
-    cursor.execute("INSERT OR IGNORE INTO users (user_id, username, first_name, reg_date) VALUES (?, ?, ?, ?)",
-                   (user_id, username, first_name, datetime.now().strftime('%Y-%m-%d')))
-    conn.commit()
+    # Регистрируем пользователя
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO users (user_id, username, first_name, reg_date) VALUES (?, ?, ?, ?)",
+            (user_id, username, first_name, date.today().strftime('%Y-%m-%d'))
+        )
+        await db.commit()
 
-    code = generate_referral_code(user_id)
-    bot_username = (await bot.get_me()).username
+    # Генерируем реферальный код
+    await generate_referral_code(user_id)
 
-    if has_agreed_to_terms(user_id):
-        await show_main_menu(message)
+    # Проверяем согласие
+    if await has_agreed_to_terms(user_id):
+        await message.answer(
+            "🌸 <b>Главное меню:</b>\n\nВыберите, что вам нужно:",
+            reply_markup=main_keyboard(user_id)
+        )
         return
 
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("🛡️ Здесь безопасно", callback_data="show_terms")
-    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🛡️ Здесь безопасно", callback_data="show_terms")]
+    ])
 
     welcome_text = (
         f"👋 Привет, {first_name}!\n\n"
-        "Я — **PauseMomBot** 🤖\n\n"
+        "Я — <b>PauseMomBot</b> 🤖\n\n"
         "Я — твой помощник в сложные моменты воспитания.\n\n"
         "Я помогаю мамам:\n"
         "🌸 Сохранять спокойствие, когда закипаешь\n"
@@ -568,270 +550,258 @@ async def start(message: types.Message):
         "Здесь безопасно и конфиденциально.\n"
         "Нажми «Здесь безопасно», чтобы продолжить ✨"
     )
-    await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+    await message.answer(welcome_text, reply_markup=keyboard)
 
-# ===== ЮРИДИЧЕСКИЙ БЛОК =====
-@dp.callback_query_handler(lambda c: c.data == "show_terms")
-async def show_terms(callback_query: types.CallbackQuery):
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("✅ Принять и продолжить", callback_data="accept_terms")
-    )
+# ================= ЮРИДИЧЕСКИЙ БЛОК =================
+@router.callback_query(F.data == "show_terms")
+async def show_terms(callback: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Принять и продолжить", callback_data="accept_terms")]
+    ])
 
-    await callback_query.message.edit_text(
-        "📋 **Пару формальностей и начнём.**\n\n"
+    text = (
+        "📋 <b>Пару формальностей и начнём.</b>\n\n"
         "Мы ценим доверие и уважаем закон. Поэтому, всё официально.\n\n"
-        "📄 **Ознакомьтесь с документами:**\n\n"
+        "📄 <b>Ознакомьтесь с документами:</b>\n\n"
         f"• <a href='{POLICY_URL}'>Политика обработки персональных данных</a>\n"
         f"• <a href='{OFFER_URL}'>Публичная оферта</a>\n"
         f"• <a href='{CONSENT_URL}'>Соглашение на обработку персональных данных</a>\n\n"
-        "Нажимая «Принять и продолжить», Вы соглашаетесь с указанными документами.",
-        reply_markup=keyboard,
-        parse_mode="HTML"
+        "Нажимая «Принять и продолжить», Вы соглашаетесь с указанными документами."
     )
-    await callback_query.answer()
+    await callback.message.edit_text(text, reply_markup=keyboard)
 
-@dp.callback_query_handler(lambda c: c.data == "accept_terms")
-async def accept_terms(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    set_agreed_to_terms(user_id)
+@router.callback_query(F.data == "accept_terms")
+async def accept_terms(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    await set_agreed_to_terms(user_id)
 
-    await callback_query.message.edit_text(
-        "✅ **Спасибо!**\n\n"
-        "Теперь вы можете пользоваться ботом.\n\n"
-        "🌸 Начните с главного меню:"
+    await callback.message.edit_text(
+        "✅ <b>Спасибо!</b>\n\nТеперь вы можете пользоваться ботом.\n\n🌸 Начните с главного меню:"
     )
-    
-    await callback_query.message.answer(
-        "🌸 **Главное меню:**\n\n"
-        "Выберите, что вам нужно:",
-        reply_markup=main_keyboard(user_id)
-    )
-    await callback_query.answer()
-
-# ===== ГЛАВНОЕ МЕНЮ =====
-async def show_main_menu(message: types.Message):
-    user_id = message.from_user.id
-    await message.answer(
-        "🌸 **Главное меню:**\n\n"
-        "Выберите, что вам нужно:",
+    await callback.message.answer(
+        "🌸 <b>Главное меню:</b>\n\nВыберите, что вам нужно:",
         reply_markup=main_keyboard(user_id)
     )
 
-# ===== SOS-ПАУЗА =====
-@dp.message_handler(lambda message: message.text == "🆘 SOS-Пауза")
-async def sos(message: types.Message):
+# ================= SOS-ПАУЗА =================
+@router.message(F.text == "🆘 SOS-Пауза")
+async def sos(message: Message):
     user_id = message.from_user.id
-    cursor.execute("UPDATE users SET total_sos = total_sos + 1 WHERE user_id = ?", (user_id,))
-    conn.commit()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET total_sos = total_sos + 1 WHERE user_id = ?", (user_id,))
+        await db.commit()
     await message.answer(
-        "⏳ **Стоп! Ты сделала главное — остановилась.**\n\n"
+        "⏳ <b>Стоп! Ты сделала главное — остановилась.</b>\n\n"
         "Выбери упражнение осознанности, которое поможет успокоиться:",
         reply_markup=sos_keyboard()
     )
 
-# ===== ВСЕ 10 УПРАЖНЕНИЙ SOS =====
-@dp.message_handler(lambda message: message.text == "🌬️ Дыхание 4-7-8")
-async def breathe(message: types.Message):
+# ================= ВСЕ 10 УПРАЖНЕНИЙ SOS =================
+@router.message(F.text == "🌬️ Дыхание 4-7-8")
+async def breathe(message: Message):
     await message.answer(
-        "🌬️ **Дыхание 4-7-8**\n\n"
-        "1️⃣ Вдохни носом — **4** секунды\n"
-        "2️⃣ Задержи дыхание — **7** секунд\n"
-        "3️⃣ Выдохни ртом — **8** секунд\n\n"
-        "🔄 Повтори **5 раз**.\n\n"
+        "🌬️ <b>Дыхание 4-7-8</b>\n\n"
+        "1️⃣ Вдохни носом — <b>4</b> секунды\n"
+        "2️⃣ Задержи дыхание — <b>7</b> секунд\n"
+        "3️⃣ Выдохни ртом — <b>8</b> секунд\n\n"
+        "🔄 Повтори <b>5 раз</b>.\n\n"
         "✨ Это снижает уровень кортизола.",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "🧘 Осознанное дыхание")
-async def mindful_breath(message: types.Message):
+@router.message(F.text == "🧘 Осознанное дыхание")
+async def mindful_breath(message: Message):
     await message.answer(
-        "🧘 **Осознанное дыхание**\n\n"
+        "🧘 <b>Осознанное дыхание</b>\n\n"
         "1️⃣ Сядь удобно, закрой глаза.\n"
         "2️⃣ Сделай 3 глубоких вдоха и выдоха.\n"
-        "3️⃣ Теперь просто **наблюдай** за своим дыханием.\n"
+        "3️⃣ Теперь просто <b>наблюдай</b> за своим дыханием.\n"
         "4️⃣ Продолжай 1 минуту.\n\n"
         "✨ Это возвращает тебя в «здесь и сейчас».",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "👀 5-4-3-2-1")
-async def grounding(message: types.Message):
+@router.message(F.text == "👀 5-4-3-2-1")
+async def grounding(message: Message):
     await message.answer(
-        "👀 **Упражнение «5-4-3-2-1»**\n\n"
+        "👀 <b>Упражнение «5-4-3-2-1»</b>\n\n"
         "Оглянись вокруг и найди:\n"
-        "5️⃣ **вещей**, которые ты видишь\n"
-        "4️⃣ **звука**, которые ты слышишь\n"
-        "3️⃣ **ощущения** на коже\n"
-        "2️⃣ **запаха**, которые ты чувствуешь\n"
-        "1️⃣ **вкуса** во рту\n\n"
+        "5️⃣ <b>вещей</b>, которые ты видишь\n"
+        "4️⃣ <b>звука</b>, которые ты слышишь\n"
+        "3️⃣ <b>ощущения</b> на коже\n"
+        "2️⃣ <b>запаха</b>, которые ты чувствуешь\n"
+        "1️⃣ <b>вкуса</b> во рту\n\n"
         "✨ Это возвращает мозг в реальность.",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "🤗 Обнять себя")
-async def self_hug(message: types.Message):
+@router.message(F.text == "🤗 Обнять себя")
+async def self_hug(message: Message):
     await message.answer(
-        "🤗 **Техника «Бабочка»**\n\n"
+        "🤗 <b>Техника «Бабочка»</b>\n\n"
         "1️⃣ Скрести руки на груди\n"
         "2️⃣ Похлопай себя по плечам попеременно\n"
-        "3️⃣ Продолжай **1 минуту**\n\n"
+        "3️⃣ Продолжай <b>1 минуту</b>\n\n"
         "✨ Это успокаивает нервную систему.",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "💧 Умыться водой")
-async def wash(message: types.Message):
+@router.message(F.text == "💧 Умыться водой")
+async def wash(message: Message):
     await message.answer(
-        "🚰 **Умывание холодной водой**\n\n"
+        "🚰 <b>Умывание холодной водой</b>\n\n"
         "1️⃣ Встань и подойди к раковине\n"
-        "2️⃣ Умой лицо холодной водой **3 раза**\n"
+        "2️⃣ Умой лицо холодной водой <b>3 раза</b>\n"
         "3️⃣ Почувствуй, как вода смывает гнев\n\n"
         "✨ Это запускает «нырятельный рефлекс».",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "🦶 Стойка на ногах")
-async def standing(message: types.Message):
+@router.message(F.text == "🦶 Стойка на ногах")
+async def standing(message: Message):
     await message.answer(
-        "🦶 **Стойка на ногах**\n\n"
+        "🦶 <b>Стойка на ногах</b>\n\n"
         "1️⃣ Встань ровно, ноги на ширине плеч\n"
         "2️⃣ Почувствуй, как ноги касаются пола\n"
         "3️⃣ Начинай медленно переносить вес:\n"
-        "   • На пятки — **3 секунды**\n"
-        "   • На носки — **3 секунды**\n"
-        "   • На внешний край стоп — **3 секунды**\n"
-        "4️⃣ Повтори **5 раз**\n\n"
+        "   • На пятки — <b>3 секунды</b>\n"
+        "   • На носки — <b>3 секунды</b>\n"
+        "   • На внешний край стоп — <b>3 секунды</b>\n"
+        "4️⃣ Повтори <b>5 раз</b>\n\n"
         "✨ Это возвращает тебя в тело.",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "🧠 Сканирование тела")
-async def body_scan(message: types.Message):
+@router.message(F.text == "🧠 Сканирование тела")
+async def body_scan(message: Message):
     await message.answer(
-        "🧠 **Сканирование тела**\n\n"
+        "🧠 <b>Сканирование тела</b>\n\n"
         "Закрой глаза и почувствуй:\n"
-        "👣 **Стопы**\n"
-        "🦵 **Ноги**\n"
-        "🤲 **Руки**\n"
-        "🫀 **Грудь**\n"
-        "👤 **Лицо**\n\n"
+        "👣 <b>Стопы</b>\n"
+        "🦵 <b>Ноги</b>\n"
+        "🤲 <b>Руки</b>\n"
+        "🫀 <b>Грудь</b>\n"
+        "👤 <b>Лицо</b>\n\n"
         "✨ Это снимает напряжение.",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "☀️ Луч света")
-async def light_beam(message: types.Message):
+@router.message(F.text == "☀️ Луч света")
+async def light_beam(message: Message):
     await message.answer(
-        "☀️ **Луч света**\n\n"
+        "☀️ <b>Луч света</b>\n\n"
         "1️⃣ Закрой глаза.\n"
-        "2️⃣ Представь **тёплый золотистый свет** над головой.\n"
+        "2️⃣ Представь <b>тёплый золотистый свет</b> над головой.\n"
         "3️⃣ Этот свет медленно опускается:\n"
         "   • на лицо — смывает напряжение\n"
         "   • на плечи — снимает тяжесть\n"
         "   • на грудь — наполняет спокойствием\n"
-        "4️⃣ Продолжай **1 минуту**\n\n"
+        "4️⃣ Продолжай <b>1 минуту</b>\n\n"
         "✨ Свет растворяет гнев.",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "🌊 Волна дыхания")
-async def wave_breath(message: types.Message):
+@router.message(F.text == "🌊 Волна дыхания")
+async def wave_breath(message: Message):
     await message.answer(
-        "🌊 **Волна дыхания**\n\n"
+        "🌊 <b>Волна дыхания</b>\n\n"
         "Представь, что твоё дыхание — это волны океана:\n\n"
-        "🌊 **Вдох** — волна накатывает\n"
-        "🌊 **Выдох** — волна уходит\n\n"
-        "🔄 Повтори **5 раз**\n\n"
+        "🌊 <b>Вдох</b> — волна накатывает\n"
+        "🌊 <b>Выдох</b> — волна уходит\n\n"
+        "🔄 Повтори <b>5 раз</b>\n\n"
         "✨ Волны смывают гнев и тревогу.",
         reply_markup=sos_keyboard()
     )
 
-@dp.message_handler(lambda message: message.text == "💭 Наблюдатель")
-async def observer(message: types.Message):
+@router.message(F.text == "💭 Наблюдатель")
+async def observer(message: Message):
     await message.answer(
-        "💭 **Наблюдатель**\n\n"
+        "💭 <b>Наблюдатель</b>\n\n"
         "1️⃣ Закрой глаза.\n"
         "2️⃣ Представь, что ты смотришь на себя со стороны.\n"
-        "3️⃣ Ты видишь свою злость как **облако**.\n"
+        "3️⃣ Ты видишь свою злость как <b>облако</b>.\n"
         "4️⃣ Наблюдай за этим облаком:\n"
         "   • Оно пришло\n"
         "   • Оно здесь\n"
         "   • Оно уходит\n\n"
-        "5️⃣ Ты не злость — ты просто **наблюдаешь** её.\n\n"
+        "5️⃣ Ты не злость — ты просто <b>наблюдаешь</b> её.\n\n"
         "✨ Ты отделяешь себя от эмоций.",
         reply_markup=sos_keyboard()
     )
 
-# ===== КНОПКА "ПРИГЛАСИТЬ ПОДРУГУ" =====
-@dp.message_handler(lambda message: message.text == "👥 Пригласить подругу")
-async def referral(message: types.Message):
+# ================= КНОПКА "ПРИГЛАСИТЬ ПОДРУГУ" =================
+@router.message(F.text == "👥 Пригласить подругу")
+async def referral(message: Message):
     user_id = message.from_user.id
-    cursor.execute("SELECT referral_code FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    if result:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT referral_code FROM users WHERE user_id = ?", (user_id,))
+        result = await cursor.fetchone()
+    if result and result[0]:
         code = result[0]
     else:
-        code = generate_referral_code(user_id)
-    bot_username = (await bot.get_me()).username
+        code = await generate_referral_code(user_id)
+    
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username
 
     await message.answer(
-        f"👥 **Твоя реферальная ссылка:**\n"
-        f"`https://t.me/{bot_username}?start={code}`\n\n"
+        f"👥 <b>Твоя реферальная ссылка:</b>\n"
+        f"<code>https://t.me/{bot_username}?start={code}</code>\n\n"
         "🌸 Поделись с подругой — поддержка важна для каждой мамы.",
         reply_markup=main_keyboard(user_id)
     )
 
-# ===== КНОПКА "ВОССТАНОВЛЕНИЕ КОНТАКТА" =====
-@dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт")
-async def restore_contact(message: types.Message):
+# ================= КНОПКА "ВОССТАНОВЛЕНИЕ КОНТАКТА" =================
+@router.message(F.text == "🤝 Восстановить контакт")
+async def restore_contact(message: Message, state: FSMContext):
     user_id = message.from_user.id
-    
-    if user_id in ADMINS or is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(row_width=2)
-        keyboard.add(
-            InlineKeyboardButton("🔄 Начать восстановление", callback_data="start_restore"),
-            InlineKeyboardButton("🌸 Ресурсные техники для мамы", callback_data="resource_techniques"),
-            InlineKeyboardButton("🧸 Техники для малышей", callback_data="kids_restore"),
-            InlineKeyboardButton("🧑 Техники для подростков и детей постарше", callback_data="teen_restore"),
-            InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main")
-        )
-        
+
+    if await is_premium(user_id):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Начать восстановление", callback_data="start_restore")],
+            [InlineKeyboardButton(text="🌸 Ресурсные техники для мамы", callback_data="resource_techniques")],
+            [InlineKeyboardButton(text="🧸 Техники для малышей", callback_data="kids_restore")],
+            [InlineKeyboardButton(text="🧑 Техники для подростков и детей постарше", callback_data="teen_restore")],
+            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main")]
+        ])
         await message.answer(
-            "🤝 **Восстановление контакта**\n\n"
+            "🤝 <b>Восстановление контакта</b>\n\n"
             "Выбери категорию:\n\n"
-            "🔄 **Начать восстановление** — пошаговый план (3 шага)\n"
-            "🌸 **Ресурсные техники для мамы** — 5 техник для восстановления ресурса\n"
-            "🧸 **Техники для малышей** — для детей 1-12 лет\n"
-            "🧑 **Техники для подростков и детей постарше** — 6 техник для взрослых детей",
+            "🔄 <b>Начать восстановление</b> — пошаговый план (3 шага)\n"
+            "🌸 <b>Ресурсные техники для мамы</b> — 5 техник для восстановления ресурса\n"
+            "🧸 <b>Техники для малышей</b> — для детей 1-12 лет\n"
+            "🧑 <b>Техники для подростков и детей постарше</b> — 6 техник для взрослых детей",
             reply_markup=keyboard
         )
         return
-    
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
-    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
+    ])
     await message.answer(
-        "🔒 **Этот раздел доступен только по подписке Premium.**\n\n"
+        "🔒 <b>Этот раздел доступен только по подписке Premium.</b>\n\n"
         "Оформите Premium (999 ₽/мес), чтобы получить доступ к эксклюзивному модулю «Восстановление контакта».",
         reply_markup=keyboard
     )
 
-# ===== НАЧАЛО ВОССТАНОВЛЕНИЯ =====
-@dp.callback_query_handler(lambda c: c.data == "start_restore")
-async def start_restore_callback(callback_query: types.CallbackQuery, state: FSMContext):
-    await callback_query.message.delete()
-    
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-    keyboard.add(KeyboardButton("✅ Прочитала, дай следующий шаг"))
-    keyboard.add(KeyboardButton("🔙 Главное меню"))
-    
-    await callback_query.message.answer(
-        "🛑 **Шаг 1 из 3: Стоп-сигнал**\n\n"
+# ================= НАЧАЛО ВОССТАНОВЛЕНИЯ (3 ШАГА) =================
+@router.callback_query(F.data == "start_restore")
+async def start_restore_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="✅ Прочитала, дай следующий шаг")],
+            [KeyboardButton(text="🔙 Главное меню")]
+        ],
+        resize_keyboard=True, row_width=1
+    )
+
+    await callback.message.answer(
+        "🛑 <b>Шаг 1 из 3: Стоп-сигнал</b>\n\n"
         "Ты уже осознала, что наговорила лишнего.\n\n"
-        "🔹 **Что делать:**\n"
-        "Ребёнок поставил границу. Самое важное сейчас — **не преследовать его**.\n\n"
+        "🔹 <b>Что делать:</b>\n"
+        "Ребёнок поставил границу. Самое важное сейчас — <b>не преследовать его</b>.\n\n"
         "🚫 Не стучись в дверь.\n"
         "🚫 Не кричи вдогонку.\n"
         "🚫 Не требуй ответа.\n\n"
@@ -840,19 +810,22 @@ async def start_restore_callback(callback_query: types.CallbackQuery, state: FSM
         "Когда будешь готова — нажми кнопку ниже.",
         reply_markup=keyboard
     )
-    await state.set_state("restore_step1")
-    await callback_query.answer()
+    await state.set_state(Form.restore_step1)
 
-@dp.message_handler(state="restore_step1", text="✅ Прочитала, дай следующий шаг")
-async def restore_step2(message: types.Message, state: FSMContext):
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-    keyboard.add(KeyboardButton("✅ Прочитала, дай следующий шаг"))
-    keyboard.add(KeyboardButton("🔙 Главное меню"))
+@router.message(Form.restore_step1, F.text == "✅ Прочитала, дай следующий шаг")
+async def restore_step2(message: Message, state: FSMContext):
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="✅ Прочитала, дай следующий шаг")],
+            [KeyboardButton(text="🔙 Главное меню")]
+        ],
+        resize_keyboard=True, row_width=1
+    )
 
     await message.answer(
-        "✍️ **Шаг 2 из 3: Я-сообщение**\n\n"
-        "Теперь, когда ты успокоилась, попробуй сказать ему **тихо** и **без оправданий**.\n\n"
-        "📝 **Выбери фразу:**\n\n"
+        "✍️ <b>Шаг 2 из 3: Я-сообщение</b>\n\n"
+        "Теперь, когда ты успокоилась, попробуй сказать ему <b>тихо</b> и <b>без оправданий</b>.\n\n"
+        "📝 <b>Выбери фразу:</b>\n\n"
         "1️⃣ «Я знаю, что я наговорила лишнего. Мне очень жаль.»\n\n"
         "2️⃣ «Я не справилась со своими эмоциями. Это неправильно.»\n\n"
         "3️⃣ «Ты очень дорог мне, даже когда я ошибаюсь.»\n\n"
@@ -860,16 +833,20 @@ async def restore_step2(message: types.Message, state: FSMContext):
         "Когда будешь готова — нажми кнопку ниже.",
         reply_markup=keyboard
     )
-    await state.set_state("restore_step2")
+    await state.set_state(Form.restore_step2)
 
-@dp.message_handler(state="restore_step2", text="✅ Прочитала, дай следующий шаг")
-async def restore_step3(message: types.Message, state: FSMContext):
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-    keyboard.add(KeyboardButton("✅ Прочитала, дай следующий шаг"))
-    keyboard.add(KeyboardButton("🔙 Главное меню"))
+@router.message(Form.restore_step2, F.text == "✅ Прочитала, дай следующий шаг")
+async def restore_step3(message: Message, state: FSMContext):
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="✅ Прочитала, дай следующий шаг")],
+            [KeyboardButton(text="🔙 Главное меню")]
+        ],
+        resize_keyboard=True, row_width=1
+    )
 
     await message.answer(
-        "🍲 **Шаг 3 из 3: Действие без слов**\n\n"
+        "🍲 <b>Шаг 3 из 3: Действие без слов</b>\n\n"
         "Он не хочет говорить? Хорошо. Не заставляй.\n\n"
         "Покажи свою любовь через действие:\n\n"
         "• 🍳 Приготовь его любимую еду\n"
@@ -879,12 +856,12 @@ async def restore_step3(message: types.Message, state: FSMContext):
         "Когда будешь готова — нажми кнопку ниже.",
         reply_markup=keyboard
     )
-    await state.set_state("restore_step3")
+    await state.set_state(Form.restore_step3)
 
-@dp.message_handler(state="restore_step3", text="✅ Прочитала, дай следующий шаг")
-async def restore_step4(message: types.Message, state: FSMContext):
+@router.message(Form.restore_step3, F.text == "✅ Прочитала, дай следующий шаг")
+async def restore_step4(message: Message, state: FSMContext):
     await message.answer(
-        "💎 **Ты сделала большой шаг!**\n\n"
+        "💎 <b>Ты сделала большой шаг!</b>\n\n"
         "Ты прошла все 3 шага восстановления контакта.\n\n"
         "Ты научилась:\n"
         "✅ Делать паузу, когда закипаешь\n"
@@ -895,36 +872,34 @@ async def restore_step4(message: types.Message, state: FSMContext):
         "🌸 Ты — самая лучшая мама для своего ребёнка!",
         reply_markup=main_keyboard(message.from_user.id)
     )
-    await state.finish()
+    await state.clear()
 
-# ===== РЕСУРСНЫЕ ТЕХНИКИ ДЛЯ МАМЫ =====
-@dp.callback_query_handler(lambda c: c.data == "resource_techniques")
-async def resource_techniques(callback_query: types.CallbackQuery):
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("🌬️ Квадратное дыхание", callback_data="res_breath"),
-        InlineKeyboardButton("✍️ Список благодарности", callback_data="res_gratitude"),
-        InlineKeyboardButton("🫂 Разрешение на отдых", callback_data="res_rest"),
-        InlineKeyboardButton("🌅 Луч света", callback_data="res_light"),
-        InlineKeyboardButton("🎵 Музыкальная пауза", callback_data="res_music"),
-        InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-    )
-    
-    await callback_query.message.edit_text(
-        "🌸 **Ресурсные техники для мамы**\n\n"
+# ================= РЕСУРСНЫЕ ТЕХНИКИ ДЛЯ МАМЫ =================
+@router.callback_query(F.data == "resource_techniques")
+async def resource_techniques(callback: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🌬️ Квадратное дыхание", callback_data="res_breath")],
+        [InlineKeyboardButton(text="✍️ Список благодарности", callback_data="res_gratitude")],
+        [InlineKeyboardButton(text="🫂 Разрешение на отдых", callback_data="res_rest")],
+        [InlineKeyboardButton(text="🌅 Луч света", callback_data="res_light")],
+        [InlineKeyboardButton(text="🎵 Музыкальная пауза", callback_data="res_music")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
+    ])
+
+    await callback.message.edit_text(
+        "🌸 <b>Ресурсные техники для мамы</b>\n\n"
         "Эти техники помогут тебе восстановить силы, успокоиться и наполниться энергией.\n\n"
         "Выбери технику:",
         reply_markup=keyboard
     )
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data.startswith("res_"))
-async def show_resource_technique(callback_query: types.CallbackQuery):
-    technique = callback_query.data.replace("res_", "")
-    
+@router.callback_query(F.data.startswith("res_"))
+async def show_resource_technique(callback: CallbackQuery):
+    technique = callback.data.replace("res_", "")
+
     techniques_texts = {
         "breath": (
-            "🌬️ **Техника «Квадратное дыхание»**\n\n"
+            "🌬️ <b>Техника «Квадратное дыхание»</b>\n\n"
             "Это дыхание помогает вернуть контроль над эмоциями за 1 минуту.\n\n"
             "1️⃣ Вдох — 4 секунды\n"
             "2️⃣ Задержка — 4 секунды\n"
@@ -934,7 +909,7 @@ async def show_resource_technique(callback_query: types.CallbackQuery):
             "💡 Представь, что ты рисуешь дыханием квадрат. Это переключает мозг с эмоций на логику."
         ),
         "gratitude": (
-            "✍️ **Техника «Список благодарности»**\n\n"
+            "✍️ <b>Техника «Список благодарности»</b>\n\n"
             "Ты так много даёшь другим. А теперь дай себе пару минут.\n\n"
             "1️⃣ Возьми лист бумаги или открой заметки в телефоне.\n"
             "2️⃣ Напиши 3 вещи, за которые ты благодарна себе сегодня.\n"
@@ -942,14 +917,14 @@ async def show_resource_technique(callback_query: types.CallbackQuery):
             "   • «Я благодарна себе за то, что...»\n"
             "   • «Я благодарна себе за то, что...»\n"
             "3️⃣ Прочитай это вслух себе.\n\n"
-            "📌 **Примеры:**\n"
+            "📌 <b>Примеры:</b>\n"
             "• «Я благодарна себе за то, что нашла время выпить чай»\n"
             "• «Я благодарна себе за то, что не сорвалась на ребёнка»\n"
             "• «Я благодарна себе за то, что я — хорошая мама»\n\n"
             "💡 Благодарность к себе — это топливо для души."
         ),
         "rest": (
-            "🫂 **Техника «Разрешение на отдых»**\n\n"
+            "🫂 <b>Техника «Разрешение на отдых»</b>\n\n"
             "Ты имеешь право на отдых. Без чувства вины. Без оправданий.\n\n"
             "1️⃣ Сядь удобно и закрой глаза.\n"
             "2️⃣ Скажи себе вслух:\n"
@@ -961,7 +936,7 @@ async def show_resource_technique(callback_query: types.CallbackQuery):
             "💡 Отдых — это не роскошь. Это необходимость. Ты заслуживаешь его."
         ),
         "light": (
-            "🌅 **Техника «Луч света»**\n\n"
+            "🌅 <b>Техника «Луч света»</b>\n\n"
             "Закрой глаза и представь, что сверху на тебя льётся тёплый золотистый свет.\n\n"
             "1️⃣ Свет мягко касается твоей головы — ты чувствуешь тепло.\n"
             "2️⃣ Он опускается на плечи — снимает тяжесть и напряжение.\n"
@@ -970,7 +945,7 @@ async def show_resource_technique(callback_query: types.CallbackQuery):
             "💡 Побудь в этом свете 2-3 минуты. Когда откроешь глаза — ты почувствуешь себя обновлённой."
         ),
         "music": (
-            "🎵 **Техника «Музыкальная пауза»**\n\n"
+            "🎵 <b>Техника «Музыкальная пауза»</b>\n\n"
             "Музыка лечит. Музыка успокаивает. Музыка возвращает к себе.\n\n"
             "1️⃣ Включи свою любимую песню.\n"
             "2️⃣ Закрой глаза и слушай только музыку.\n"
@@ -979,83 +954,75 @@ async def show_resource_technique(callback_query: types.CallbackQuery):
             "💡 3 минуты музыки могут дать больше отдыха, чем час в социальных сетях."
         )
     }
-    
+
     text = techniques_texts.get(technique, "Техника не найдена.")
-    
-    await callback_query.message.edit_text(
+
+    await callback.message.edit_text(
         f"{text}\n\n"
         f"🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="resource_techniques")
-        )
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="resource_techniques")]
+        ])
     )
-    await callback_query.answer()
 
-# ===== ТЕХНИКИ ДЛЯ МАЛЫШЕЙ (В ВОССТАНОВЛЕНИИ КОНТАКТА) =====
-@dp.callback_query_handler(lambda c: c.data == "kids_restore")
-async def kids_restore_techniques(callback_query: types.CallbackQuery):
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(
-        InlineKeyboardButton("👶 1-3 года", callback_data="kids_restore_1_3"),
-        InlineKeyboardButton("🧒 4-6 лет", callback_data="kids_restore_4_6"),
-        InlineKeyboardButton("👦 7-9 лет", callback_data="kids_restore_7_9"),
-        InlineKeyboardButton("👦 10-12 лет", callback_data="kids_restore_10_12"),
-        InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-    )
-    
-    await callback_query.message.edit_text(
-        "🧸 **Техники для малышей**\n\n"
-        "Выбери возраст ребёнка:",
+# ================= ТЕХНИКИ ДЛЯ МАЛЫШЕЙ (В ВОССТАНОВЛЕНИИ) =================
+@router.callback_query(F.data == "kids_restore")
+async def kids_restore_techniques(callback: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👶 1-3 года", callback_data="kids_restore_1_3"),
+         InlineKeyboardButton(text="🧒 4-6 лет", callback_data="kids_restore_4_6")],
+        [InlineKeyboardButton(text="👦 7-9 лет", callback_data="kids_restore_7_9"),
+         InlineKeyboardButton(text="👦 10-12 лет", callback_data="kids_restore_10_12")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
+    ])
+
+    await callback.message.edit_text(
+        "🧸 <b>Техники для малышей</b>\n\nВыбери возраст ребёнка:",
         reply_markup=keyboard
     )
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data.startswith("kids_restore_"))
-async def show_kids_restore_technique(callback_query: types.CallbackQuery):
-    age_group = callback_query.data.replace("kids_restore_", "")
+@router.callback_query(F.data.startswith("kids_restore_"))
+async def show_kids_restore_technique(callback: CallbackQuery):
+    age_group = callback.data.replace("kids_restore_", "")
     techniques_data = get_kids_techniques(age_group)
-    
-    tips_text = "\n\n".join(techniques_data["tips"])
-    
-    await callback_query.message.edit_text(
-        f"{techniques_data['title']}\n\n"
-        f"{tips_text}\n\n"
-        f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="kids_restore")
-        )
-    )
-    await callback_query.answer()
 
-# ===== ТЕХНИКИ ДЛЯ ПОДРОСТКОВ И ДЕТЕЙ ПОСТАРШЕ =====
-@dp.callback_query_handler(lambda c: c.data == "teen_restore")
-async def teen_restore_techniques(callback_query: types.CallbackQuery):
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("👁️ Наблюдатель", callback_data="teen_observer"),
-        InlineKeyboardButton("🎯 Стоп-кадр", callback_data="teen_stop_frame"),
-        InlineKeyboardButton("🗣️ Честность без оправданий", callback_data="teen_honest"),
-        InlineKeyboardButton("🎯 Совет по запросу", callback_data="teen_advice"),
-        InlineKeyboardButton("📱 Музыка-мостик", callback_data="teen_music"),
-        InlineKeyboardButton("🧩 Спроси, а не учи", callback_data="teen_ask"),
-        InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
+    tips_text = "\n\n".join(techniques_data["tips"])
+
+    await callback.message.edit_text(
+        f"{techniques_data['title']}\n\n{tips_text}\n\n"
+        f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="kids_restore")]
+        ])
     )
-    
-    await callback_query.message.edit_text(
-        "🧑 **Техники для подростков и детей постарше**\n\n"
+
+# ================= ТЕХНИКИ ДЛЯ ПОДРОСТКОВ =================
+@router.callback_query(F.data == "teen_restore")
+async def teen_restore_techniques(callback: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👁️ Наблюдатель", callback_data="teen_observer")],
+        [InlineKeyboardButton(text="🎯 Стоп-кадр", callback_data="teen_stop_frame")],
+        [InlineKeyboardButton(text="🗣️ Честность без оправданий", callback_data="teen_honest")],
+        [InlineKeyboardButton(text="🎯 Совет по запросу", callback_data="teen_advice")],
+        [InlineKeyboardButton(text="📱 Музыка-мостик", callback_data="teen_music")],
+        [InlineKeyboardButton(text="🧩 Спроси, а не учи", callback_data="teen_ask")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
+    ])
+
+    await callback.message.edit_text(
+        "🧑 <b>Техники для подростков и детей постарше</b>\n\n"
         "Эти техники помогут восстановить контакт с подростками и взрослыми детьми.\n\n"
         "Выбери технику:",
         reply_markup=keyboard
     )
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data.startswith("teen_"))
-async def show_teen_technique(callback_query: types.CallbackQuery):
-    technique = callback_query.data.replace("teen_", "")
-    
+@router.callback_query(F.data.startswith("teen_"))
+async def show_teen_technique(callback: CallbackQuery):
+    technique = callback.data.replace("teen_", "")
+
     techniques_texts = {
         "observer": (
-            "👁️ **Техника «Наблюдатель»**\n\n"
+            "👁️ <b>Техника «Наблюдатель»</b>\n\n"
             "1️⃣ Закрой глаза и представь, что ты смотришь на себя со стороны.\n"
             "2️⃣ Ты видишь маму и ребёнка после ссоры.\n"
             "3️⃣ Что ты видишь? Какие эмоции? Что происходит?\n"
@@ -1064,7 +1031,7 @@ async def show_teen_technique(callback_query: types.CallbackQuery):
             "💡 Взгляд со стороны помогает увидеть решение."
         ),
         "stop_frame": (
-            "🎯 **Техника «Стоп-кадр»**\n\n"
+            "🎯 <b>Техника «Стоп-кадр»</b>\n\n"
             "Ты уже осознала, что сорвалась. Теперь давай разберём ситуацию.\n\n"
             "1️⃣ Закрой глаза и прокрути ситуацию как фильм.\n"
             "2️⃣ Найди момент, когда ты ещё могла сказать мягко.\n"
@@ -1074,10 +1041,10 @@ async def show_teen_technique(callback_query: types.CallbackQuery):
             "💡 Это упражнение превращает ошибку в опыт."
         ),
         "honest": (
-            "🗣️ **Техника «Честность без оправданий»**\n\n"
+            "🗣️ <b>Техника «Честность без оправданий»</b>\n\n"
             "Подростки и взрослые дети ненавидят оправдания.\n"
             "«Я устала», «Я не хотела», «Ты сам меня довёл» — это только злит.\n\n"
-            "🔹 **Что сказать:**\n"
+            "🔹 <b>Что сказать:</b>\n"
             "Вместо оправданий скажи коротко и честно:\n\n"
             "«Я была неправа. Прости.»\n\n"
             "Или:\n"
@@ -1086,9 +1053,9 @@ async def show_teen_technique(callback_query: types.CallbackQuery):
             "Это вызывает уважение, а не раздражение."
         ),
         "advice": (
-            "🎯 **Техника «Совет только по запросу»**\n\n"
+            "🎯 <b>Техника «Совет только по запросу»</b>\n\n"
             "Взрослые дети не любят непрошенные советы.\n\n"
-            "🔹 **Что делать:**\n"
+            "🔹 <b>Что делать:</b>\n"
             "❌ Не говори: «Я бы на твоём месте...»\n"
             "✅ Спроси: «Хочешь, я поделюсь своим мнением?»\n"
             "✅ Если он говорит «нет» — прими это.\n\n"
@@ -1096,9 +1063,9 @@ async def show_teen_technique(callback_query: types.CallbackQuery):
             "Запрошенный совет — это помощь."
         ),
         "music": (
-            "📱 **Техника «Музыка-мостик»**\n\n"
+            "📱 <b>Техника «Музыка-мостик»</b>\n\n"
             "Музыка объединяет лучше слов.\n\n"
-            "🔹 **Что делать:**\n"
+            "🔹 <b>Что делать:</b>\n"
             "1️⃣ Спроси: «Что ты сейчас слушаешь? Можешь скинуть плейлист?»\n"
             "2️⃣ Если он скидывает — это большой шаг. Значит, он готов делиться своим миром.\n"
             "3️⃣ Послушай, что он скинул.\n"
@@ -1106,10 +1073,10 @@ async def show_teen_technique(callback_query: types.CallbackQuery):
             "💡 Интерес к его музыке — интерес к его миру."
         ),
         "ask": (
-            "🧩 **Техника «Спроси, а не учи»**\n\n"
+            "🧩 <b>Техника «Спроси, а не учи»</b>\n\n"
             "Подростки ненавидят, когда их учат жизни.\n"
             "Им нужен диалог, а не лекция.\n\n"
-            "🔹 **Что спросить:**\n"
+            "🔹 <b>Что спросить:</b>\n"
             "«Что ты думаешь об этом?»\n"
             "«Как ты видишь эту ситуацию?»\n"
             "«Что для тебя сейчас важно?»\n"
@@ -1118,165 +1085,154 @@ async def show_teen_technique(callback_query: types.CallbackQuery):
             "Когда ты учишь — ты показываешь превосходство."
         )
     }
-    
+
     text = techniques_texts.get(technique, "Техника не найдена.")
-    
-    await callback_query.message.edit_text(
+
+    await callback.message.edit_text(
         f"{text}\n\n"
         f"🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="teen_restore")
-        )
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="teen_restore")]
+        ])
     )
-    await callback_query.answer()
 
-# ===== КНОПКА "НУЖНЫЕ СЛОВА ДЛЯ МАМЫ" =====
-@dp.message_handler(lambda message: message.text == "💝 Нужные слова для мамы")
-async def support_menu(message: types.Message):
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(
-        InlineKeyboardButton("👋 Первое знакомство", callback_data="support_welcome"),
-        InlineKeyboardButton("🌸 После SOS-паузы", callback_data="support_after_sos"),
-        InlineKeyboardButton("🫂 После срыва", callback_data="support_after_cry"),
-        InlineKeyboardButton("🌙 Вечерняя поддержка", callback_data="support_evening"),
-        InlineKeyboardButton("🌅 Утренняя поддержка", callback_data="support_morning"),
-        InlineKeyboardButton("👧 Для мам подростков", callback_data="support_teen"),
-        InlineKeyboardButton("👩 Для мам взрослых детей", callback_data="support_adult"),
-        InlineKeyboardButton("🍼 Для мам в декрете", callback_data="support_baby"),
-        InlineKeyboardButton("😴 Кто не выспался", callback_data="support_tired"),
-        InlineKeyboardButton("💔 Кто чувствует себя недостаточно хорошей", callback_data="support_not_enough"),
-        InlineKeyboardButton("🫂 Кто устал от вины", callback_data="support_guilt"),
-        InlineKeyboardButton("🫂 Кто чувствует себя одинокой", callback_data="support_alone"),
-        InlineKeyboardButton("💝 Забота о себе", callback_data="support_self_care")
-    )
-    
+# ================= КНОПКА "НУЖНЫЕ СЛОВА ДЛЯ МАМЫ" =================
+@router.message(F.text == "💝 Нужные слова для мамы")
+async def support_menu(message: Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👋 Первое знакомство", callback_data="support_welcome"),
+         InlineKeyboardButton(text="🌸 После SOS-паузы", callback_data="support_after_sos")],
+        [InlineKeyboardButton(text="🫂 После срыва", callback_data="support_after_cry"),
+         InlineKeyboardButton(text="🌙 Вечерняя поддержка", callback_data="support_evening")],
+        [InlineKeyboardButton(text="🌅 Утренняя поддержка", callback_data="support_morning"),
+         InlineKeyboardButton(text="👧 Для мам подростков", callback_data="support_teen")],
+        [InlineKeyboardButton(text="👩 Для мам взрослых детей", callback_data="support_adult"),
+         InlineKeyboardButton(text="🍼 Для мам в декрете", callback_data="support_baby")],
+        [InlineKeyboardButton(text="😴 Кто не выспался", callback_data="support_tired"),
+         InlineKeyboardButton(text="💔 Кто чувствует себя недостаточно хорошей", callback_data="support_not_enough")],
+        [InlineKeyboardButton(text="🫂 Кто устал от вины", callback_data="support_guilt"),
+         InlineKeyboardButton(text="🫂 Кто чувствует себя одинокой", callback_data="support_alone")],
+        [InlineKeyboardButton(text="💝 Забота о себе", callback_data="support_self_care")]
+    ])
+
     await message.answer(
-        "💝 **Нужные слова для мамы**\n\n"
+        "💝 <b>Нужные слова для мамы</b>\n\n"
         "Выбери категорию, которая откликается тебе сейчас:",
         reply_markup=keyboard
     )
 
-@dp.callback_query_handler(lambda c: c.data.startswith('support_'))
-async def show_support_message(callback_query: types.CallbackQuery):
-    category = callback_query.data.replace('support_', '')
+@router.callback_query(F.data.startswith('support_'))
+async def show_support_message(callback: CallbackQuery):
+    category = callback.data.replace('support_', '')
     message_data = get_support_message(category)
-    
-    await callback_query.message.edit_text(
-        f"💝 **{message_data['title']}**\n\n{message_data['text']}\n\n"
+
+    await callback.message.edit_text(
+        f"💝 <b>{message_data['title']}</b>\n\n{message_data['text']}\n\n"
         "🔙 Нажми «Назад», чтобы выбрать другую категорию.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад к категориям", callback_data="back_to_support")
-        )
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад к категориям", callback_data="back_to_support")]
+        ])
     )
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_support")
-async def back_to_support(callback_query: types.CallbackQuery):
-    await support_menu(callback_query.message)
-    await callback_query.answer()
+@router.callback_query(F.data == "back_to_support")
+async def back_to_support(callback: CallbackQuery):
+    await support_menu(callback.message)
 
-# ===== КНОПКА "ТЕХНИКИ ДЛЯ МАЛЫШЕЙ" (PREMIUM) =====
-@dp.message_handler(lambda message: message.text == "🧸 Техники для малышей")
-async def kids_techniques_menu(message: types.Message):
+# ================= КНОПКА "ТЕХНИКИ ДЛЯ МАЛЫШЕЙ" (PREMIUM) =================
+@router.message(F.text == "🧸 Техники для малышей")
+async def kids_techniques_menu(message: Message):
     user_id = message.from_user.id
-    
-    if user_id in ADMINS or is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(row_width=2)
-        keyboard.add(
-            InlineKeyboardButton("👶 1-3 года", callback_data="kids_1_3"),
-            InlineKeyboardButton("🧒 4-6 лет", callback_data="kids_4_6"),
-            InlineKeyboardButton("👦 7-9 лет", callback_data="kids_7_9"),
-            InlineKeyboardButton("👦 10-12 лет", callback_data="kids_10_12"),
-            InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main")
-        )
-        
+
+    if await is_premium(user_id):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="👶 1-3 года", callback_data="kids_1_3"),
+             InlineKeyboardButton(text="🧒 4-6 лет", callback_data="kids_4_6")],
+            [InlineKeyboardButton(text="👦 7-9 лет", callback_data="kids_7_9"),
+             InlineKeyboardButton(text="👦 10-12 лет", callback_data="kids_10_12")],
+            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main")]
+        ])
         await message.answer(
-            "🧸 **Техники для малышей**\n\n"
-            "Выбери возраст:",
+            "🧸 <b>Техники для малышей</b>\n\nВыбери возраст:",
             reply_markup=keyboard
         )
         return
-    
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
-    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
+    ])
     await message.answer(
-        "🔒 **Техники для малышей доступны только Premium-пользователям.**\n\n"
+        "🔒 <b>Техники для малышей доступны только Premium-пользователям.</b>\n\n"
         "Оформите Premium (999 ₽/мес) и получите доступ к техникам для детей от 1 до 12 лет.",
         reply_markup=keyboard
     )
 
-@dp.callback_query_handler(lambda c: c.data.startswith('kids_'))
-async def process_kids_technique(callback_query: types.CallbackQuery):
-    if callback_query.data == "back_to_main":
-        await callback_query.message.delete()
-        await callback_query.message.answer(
+@router.callback_query(F.data.startswith('kids_'))
+async def process_kids_technique(callback: CallbackQuery):
+    if callback.data == "kids_back_to_main":
+        await callback.message.delete()
+        await callback.message.answer(
             "Главное меню:",
-            reply_markup=main_keyboard(callback_query.from_user.id)
+            reply_markup=main_keyboard(callback.from_user.id)
         )
-        await callback_query.answer()
         return
-    
-    age_group = callback_query.data.replace("kids_", "")
+
+    age_group = callback.data.replace("kids_", "")
     techniques_data = get_kids_techniques(age_group)
-    
+
     tips_text = "\n\n".join(techniques_data["tips"])
-    
-    await callback_query.message.edit_text(
-        f"{techniques_data['title']}\n\n"
-        f"{tips_text}\n\n"
+
+    await callback.message.edit_text(
+        f"{techniques_data['title']}\n\n{tips_text}\n\n"
         f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад к возрастам", callback_data="back_to_kids")
-        )
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад к возрастам", callback_data="back_to_kids")]
+        ])
     )
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_kids")
-async def back_to_kids(callback_query: types.CallbackQuery):
-    await kids_techniques_menu(callback_query.message)
-    await callback_query.answer()
+@router.callback_query(F.data == "back_to_kids")
+async def back_to_kids(callback: CallbackQuery):
+    await kids_techniques_menu(callback.message)
 
-# ===== КНОПКА "АФФИРМАЦИЯ ДНЯ" (ДОСТУП АДМИНАМ) =====
-@dp.message_handler(lambda message: message.text == "🌅 Аффирмация дня")
-async def daily_affirmation(message: types.Message):
+# ================= КНОПКА "АФФИРМАЦИЯ ДНЯ" =================
+@router.message(F.text == "🌅 Аффирмация дня")
+async def daily_affirmation(message: Message):
     user_id = message.from_user.id
-    
-    # Проверяем Premium (админы всегда имеют доступ)
-    if user_id not in ADMINS and not is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(row_width=1)
-        keyboard.add(
-            InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
-        )
+
+    if not await is_premium(user_id):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
+        ])
         await message.answer(
-            "🔒 **Аффирмации доступны только Premium-пользователям.**\n\n"
+            "🔒 <b>Аффирмации доступны только Premium-пользователям.</b>\n\n"
             "Оформите Premium (999 ₽/мес) и получайте 100 поддерживающих фраз.",
             reply_markup=keyboard
         )
         return
-    
-    cursor.execute("SELECT last_affirmation FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    today = datetime.now().strftime('%Y-%m-%d')
-    
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT last_affirmation FROM users WHERE user_id = ?", (user_id,))
+        result = await cursor.fetchone()
+
+    today = date.today().strftime('%Y-%m-%d')
+
     if result and result[0] == today:
         affirmation = get_daily_affirmation()
         await message.answer(
-            f"🌅 **Твоя аффирмация на сегодня:**\n\n"
+            f"🌅 <b>Твоя аффирмация на сегодня:</b>\n\n"
             f"«{affirmation}»\n\n"
             f"💫 Ты уже получила её сегодня. Повтори несколько раз с любовью к себе.",
             reply_markup=main_keyboard(user_id)
         )
     else:
-        cursor.execute("UPDATE users SET last_affirmation = ? WHERE user_id = ?", (today, user_id))
-        conn.commit()
-        
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("UPDATE users SET last_affirmation = ? WHERE user_id = ?", (today, user_id))
+            await db.commit()
+
         affirmation = get_daily_affirmation()
         day_of_year = datetime.now().timetuple().tm_yday
-        
+
         await message.answer(
-            f"🌅 **Аффирмация дня #{day_of_year % 100 + 1}**\n\n"
+            f"🌅 <b>Аффирмация дня #{day_of_year % 100 + 1}</b>\n\n"
             f"«{affirmation}»\n\n"
             f"💫 Повтори эту аффирмацию 3 раза сегодня.\n"
             f"✨ Она наполнит тебя силой и уверенностью.\n\n"
@@ -1284,306 +1240,267 @@ async def daily_affirmation(message: types.Message):
             reply_markup=main_keyboard(user_id)
         )
 
-# ===== КНОПКА "ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ" =====
-@dp.message_handler(lambda message: message.text == "📚 Общие рекомендации по возрасту")
-async def age_recommendations(message: types.Message):
+# ================= КНОПКА "ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ" =================
+@router.message(F.text == "📚 Общие рекомендации по возрасту")
+async def age_recommendations(message: Message):
     await message.answer(
-        "📚 **Общие рекомендации по возрасту**\n\n"
+        "📚 <b>Общие рекомендации по возрасту</b>\n\n"
         "Выбери возраст своего ребёнка:",
         reply_markup=get_age_keyboard()
     )
 
-@dp.callback_query_handler(lambda c: c.data.startswith('age_'))
-async def process_age_choice(callback_query: types.CallbackQuery):
-    age_group = callback_query.data
+@router.callback_query(F.data.startswith('age_'))
+async def process_age_choice(callback: CallbackQuery):
+    age_group = callback.data
     advice_data = get_advice_by_age(age_group)
-    
+
     tips_text = "\n\n".join(advice_data["tips"])
     restore_text = "\n\n".join([f"• {t}" for t in advice_data.get("restore_techniques", [])])
-    
+
     message_text = (
-        f"📚 **{advice_data['title']}**\n\n"
-        f"📋 **Рекомендации:**\n\n"
+        f"📚 <b>{advice_data['title']}</b>\n\n"
+        f"📋 <b>Рекомендации:</b>\n\n"
         f"{tips_text}\n\n"
     )
-    
+
     if restore_text:
         message_text += (
-            f"🔄 **Техники восстановления контакта:**\n\n"
+            f"🔄 <b>Техники восстановления контакта:</b>\n\n"
             f"{restore_text}\n\n"
         )
-    
+
     message_text += (
         f"💡 Помни: каждый ребёнок уникален. Эти рекомендации — ориентир.\n\n"
         f"🔙 Нажми «Назад», чтобы выбрать другой возраст."
     )
-    
-    await callback_query.message.edit_text(
-        message_text,
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад к возрастам", callback_data="back_to_ages")
-        )
-    )
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_ages")
-async def back_to_ages(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "📚 **Общие рекомендации по возрасту**\n\n"
+    await callback.message.edit_text(
+        message_text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад к возрастам", callback_data="back_to_ages")]
+        ])
+    )
+
+@router.callback_query(F.data == "back_to_ages")
+async def back_to_ages(callback: CallbackQuery):
+    await callback.message.edit_text(
+        "📚 <b>Общие рекомендации по возрасту</b>\n\n"
         "Выбери возраст своего ребёнка:",
         reply_markup=get_age_keyboard()
     )
-    await callback_query.answer()
 
-# ===== НАЗАД К ВОССТАНОВЛЕНИЮ КОНТАКТА =====
-@dp.callback_query_handler(lambda c: c.data == "back_to_restore")
-async def back_to_restore(callback_query: types.CallbackQuery, state: FSMContext):
-    await state.finish()
-    
+# ================= НАЗАД =================
+@router.callback_query(F.data == "back_to_restore")
+async def back_to_restore(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.delete()
+    # Создаем "фейковое" сообщение для вызова restore_contact
     class FakeMessage:
         def __init__(self, user_id):
-            self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
-        async def answer(self, text, reply_markup=None, parse_mode=None):
-            await callback_query.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
-    
-    fake_msg = FakeMessage(callback_query.from_user.id)
-    await restore_contact(fake_msg)
-    await callback_query.answer()
+            self.from_user = type('User', (), {'id': user_id})()
+        async def answer(self, text, reply_markup=None):
+            await callback.message.answer(text, reply_markup=reply_markup)
+    fake_msg = FakeMessage(callback.from_user.id)
+    await restore_contact(fake_msg, state)
 
-# ===== НАЗАД В ГЛАВНОЕ МЕНЮ =====
-@dp.callback_query_handler(lambda c: c.data == "back_to_main")
-async def back_to_main(callback_query: types.CallbackQuery):
-    await callback_query.message.delete()
-    await callback_query.message.answer(
-        "🌸 **Главное меню:**\n\n"
-        "Выберите, что вам нужно:",
-        reply_markup=main_keyboard(callback_query.from_user.id)
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main(callback: CallbackQuery):
+    await callback.message.delete()
+    await callback.message.answer(
+        "🌸 <b>Главное меню:</b>\n\nВыберите, что вам нужно:",
+        reply_markup=main_keyboard(callback.from_user.id)
     )
-    await callback_query.answer()
 
-# ===== PREMIUM =====
-@dp.message_handler(lambda message: message.text == "💎 Premium")
-async def premium_info(message: types.Message):
+# ================= PREMIUM =================
+@router.message(F.text == "💎 Premium")
+async def premium_info(message: Message):
     user_id = message.from_user.id
-    
-    # Админ — доступ без оплаты
+
     if user_id in ADMINS:
         await message.answer(
-            "👑 **Вы — создатель бота!**\n\n"
+            "👑 <b>Вы — создатель бота!</b>\n\n"
             "Вам доступны все функции Premium без оплаты.\n\n"
-            "✨ **Доступно:**\n"
+            "✨ <b>Доступно:</b>\n"
             "✅ Техники для малышей (1-12 лет)\n"
             "✅ Модуль «Восстановление контакта»\n"
             "✅ 100 аффирмаций поддержки",
             reply_markup=main_keyboard(user_id)
         )
-        if not is_premium(user_id):
-            add_premium(user_id, 36500)
+        if not await is_premium(user_id):
+            await add_premium(user_id, 36500)
         return
 
-    # Проверка Premium
-    if is_premium(user_id):
-        cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
-        result = cursor.fetchone()
-        if result:
-            end_date = result[0]
+    if await is_premium(user_id):
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
+            result = await cursor.fetchone()
+        if result and result[0]:
             await message.answer(
-                f"✅ **У тебя уже есть Premium!**\n\n"
-                f"📅 Действует до: {end_date}\n\n"
+                f"✅ <b>У тебя уже есть Premium!</b>\n\n"
+                f"📅 Действует до: {result[0]}\n\n"
                 "Пользуйся всеми функциями без ограничений.",
                 reply_markup=main_keyboard(user_id)
             )
         return
 
-    # Обычное предложение Premium
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("✅ Я оплатил(а)", callback_data="confirm_payment"),
-        InlineKeyboardButton("❓ Как оплатить?", callback_data="payment_help")
-    )
-    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❓ Как оплатить?", callback_data="payment_help")]
+        # TODO: Когда подключите оплату, раскомментируйте эту кнопку
+        # [InlineKeyboardButton(text="✅ Я оплатил(а)", callback_data="confirm_payment")]
+    ])
+
     await message.answer(
-        "💎 **Premium — 999 ₽/мес**\n\n"
-        "✨ **Что ты получаешь:**\n"
+        "💎 <b>Premium — 999 ₽/мес</b>\n\n"
+        "✨ <b>Что ты получаешь:</b>\n"
         "✅ Техники для малышей (1-12 лет)\n"
         "✅ Модуль «Восстановление контакта»\n"
         "✅ 100 аффирмаций поддержки\n\n"
-        "📲 **Как оплатить:**\n"
+        "📲 <b>Как оплатить:</b>\n"
         "1️⃣ Напишите @PauseMomSupport_bot\n"
         "2️⃣ Сообщите, что хотите оплатить Premium\n"
-        "3️⃣ После оплаты нажмите «✅ Я оплатил(а)»\n\n"
+        "3️⃣ После оплаты Premium активируется вручную\n\n"
         "🔹 Premium активируется на 30 дней",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
+        reply_markup=keyboard
     )
 
-@dp.callback_query_handler(lambda c: c.data == "payment_help")
-async def payment_help(callback_query: types.CallbackQuery):
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("🔙 Назад к Premium", callback_data="back_to_premium")
-    )
-    
-    await callback_query.message.edit_text(
-        "❓ **Как оплатить Premium:**\n\n"
+@router.callback_query(F.data == "payment_help")
+async def payment_help(callback: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад к Premium", callback_data="back_to_premium")]
+    ])
+
+    await callback.message.edit_text(
+        "❓ <b>Как оплатить Premium:</b>\n\n"
         "1️⃣ Напишите @PauseMomSupport_bot\n"
         "2️⃣ Сообщите: «Хочу оплатить Premium»\n"
         "3️⃣ Вам придёт ссылка на оплату (999 ₽)\n"
         "4️⃣ Оплатите удобным способом\n"
-        "5️⃣ Вернитесь в бот и нажмите «✅ Я оплатил(а)»\n"
-        "6️⃣ Premium активируется на 30 дней\n\n"
-        "💡 Если вы уже оплатили, просто нажмите «Я оплатил(а)»",
+        "5️⃣ Поддержка активирует Premium вручную\n\n"
+        "💡 Premium активируется в течение 24 часов после оплаты",
         reply_markup=keyboard
     )
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_premium")
-async def back_to_premium(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    
+@router.callback_query(F.data == "back_to_premium")
+async def back_to_premium(callback: CallbackQuery):
+    await callback.message.delete()
     class FakeMessage:
         def __init__(self, user_id):
-            self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
-        async def answer(self, text, reply_markup=None, parse_mode=None):
-            await callback_query.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
-    
-    fake_msg = FakeMessage(user_id)
-    await callback_query.message.delete()
+            self.from_user = type('User', (), {'id': user_id})()
+        async def answer(self, text, reply_markup=None):
+            await callback.message.answer(text, reply_markup=reply_markup)
+    fake_msg = FakeMessage(callback.from_user.id)
     await premium_info(fake_msg)
-    await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data == "confirm_payment")
-async def confirm_payment(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    
-    if user_id in ADMINS:
-        add_premium(user_id, 36500)
-        await callback_query.message.edit_text(
-            "👑 **Premium активирован на 100 лет!** 🎉",
-            reply_markup=main_keyboard(user_id)
-        )
-        await callback_query.answer()
-        return
-    
-    if is_premium(user_id):
-        await callback_query.message.edit_text(
-            "✅ **У тебя уже есть Premium!**",
-            reply_markup=main_keyboard(user_id)
-        )
-        await callback_query.answer()
-        return
-    
-    add_premium(user_id, 30)
-    await callback_query.message.edit_text(
-        "✅ **Premium активирован на 30 дней!** 🎉\n\n"
-        "🌸 Приятного использования!",
-        reply_markup=main_keyboard(user_id)
-    )
-    await callback_query.answer()
+# Кнопка "Я оплатил" временно отключена
+# @router.callback_query(F.data == "confirm_payment")
+# async def confirm_payment(callback: CallbackQuery):
+#     user_id = callback.from_user.id
+#     await add_premium(user_id, 30)
+#     await callback.message.edit_text("✅ <b>Premium активирован на 30 дней!</b> 🎉")
+#     await callback.message.answer("🌸 Приятного использования!", reply_markup=main_keyboard(user_id))
 
-# ===== ПОМОЩЬ =====
-@dp.message_handler(lambda message: message.text == "📞 Помощь")
-async def help_menu(message: types.Message):
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("💬 Написать в поддержку", url="https://t.me/PauseMomSupport_bot")
-    )
-    
+# ================= ПОМОЩЬ =================
+@router.message(F.text == "📞 Помощь")
+async def help_menu(message: Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💬 Написать в поддержку", url="https://t.me/PauseMomSupport_bot")]
+    ])
+
     await message.answer(
-        "📞 **Помощь**\n\n"
-        "❓ **Частые вопросы:**\n"
+        "📞 <b>Помощь</b>\n\n"
+        "❓ <b>Частые вопросы:</b>\n"
         "• Как оплатить Premium? → Нажми «💎 Premium»\n"
         "• Проблемы с оплатой? → Напиши поддержке\n"
         "• Хочешь предложить идею? → Мы открыты!\n\n"
         "🕐 Мы отвечаем в течение 24 часов.\n"
         "💝 Спасибо, что ты с нами!",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
-
-# ===== НАЗАД =====
-@dp.message_handler(lambda message: message.text == "🔙 Главное меню")
-async def back_to_menu(message: types.Message):
-    await message.answer("Главное меню:", reply_markup=main_keyboard(message.from_user.id))
-
-# ===== АДМИН-ПАНЕЛЬ =====
-@dp.message_handler(commands=['admin'])
-async def admin_command(message: types.Message):
-    user_id = message.from_user.id
-    if user_id not in ADMINS:
-        await message.answer("⛔ **Доступ запрещён.**")
-        return
-    
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    keyboard.add(
-        KeyboardButton("👑 Активировать Premium (навсегда)"),
-        KeyboardButton("👑 Активировать Premium (1 месяц)")
-    )
-    keyboard.add(
-        KeyboardButton("📊 Пользователи (статистика)"),
-        KeyboardButton("🔙 Главное меню")
-    )
-    
-    await message.answer(
-        "👑 **Админ-панель**\n\n"
-        "Добро пожаловать, создатель! 👋\n\n"
-        "Выберите действие:",
         reply_markup=keyboard
     )
 
-@dp.message_handler(lambda message: message.text == "👑 Активировать Premium (навсегда)")
-async def admin_premium_forever(message: types.Message):
+# ================= АДМИН-ПАНЕЛЬ =================
+@router.message(Command("admin"))
+async def admin_command(message: Message):
+    user_id = message.from_user.id
+    if user_id not in ADMINS:
+        await message.answer("⛔ <b>Доступ запрещён.</b>")
+        return
+
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="👑 Активировать Premium (навсегда)"), KeyboardButton(text="👑 Активировать Premium (1 месяц)")],
+            [KeyboardButton(text="📊 Пользователи (статистика)"), KeyboardButton(text="🔙 Главное меню")]
+        ],
+        resize_keyboard=True, row_width=2
+    )
+    await message.answer(
+        "👑 <b>Админ-панель</b>\n\nДобро пожаловать, создатель! 👋\n\nВыберите действие:",
+        reply_markup=keyboard
+    )
+
+@router.message(F.text == "👑 Активировать Premium (навсегда)")
+async def admin_premium_forever(message: Message):
     user_id = message.from_user.id
     if user_id not in ADMINS:
         await message.answer("⛔ Доступ запрещён.")
         return
-    
-    add_premium(user_id, 36500)
+
+    await add_premium(user_id, 36500)
     await message.answer(
-        "✅ **Premium активирован НАВСЕГДА!** 🎉\n\n"
+        "✅ <b>Premium активирован НАВСЕГДА!</b> 🎉\n\n"
         "Срок действия — 100 лет (до 2126 года).\n\n"
         "🌸 Приятного использования!",
         reply_markup=main_keyboard(user_id)
     )
 
-@dp.message_handler(lambda message: message.text == "👑 Активировать Premium (1 месяц)")
-async def admin_premium_1month(message: types.Message):
+@router.message(F.text == "👑 Активировать Premium (1 месяц)")
+async def admin_premium_1month(message: Message):
     user_id = message.from_user.id
     if user_id not in ADMINS:
         await message.answer("⛔ Доступ запрещён.")
         return
-    
-    add_premium(user_id, 30)
+
+    await add_premium(user_id, 30)
     await message.answer(
-        "✅ **Premium активирован на 1 месяц!** 🎉",
+        "✅ <b>Premium активирован на 1 месяц!</b> 🎉",
         reply_markup=main_keyboard(user_id)
     )
 
-@dp.message_handler(lambda message: message.text == "📊 Пользователи (статистика)")
-async def admin_stats(message: types.Message):
+@router.message(F.text == "📊 Пользователи (статистика)")
+async def admin_stats(message: Message):
     user_id = message.from_user.id
     if user_id not in ADMINS:
         await message.answer("⛔ Доступ запрещён.")
         return
-    
-    cursor.execute("SELECT COUNT(*) FROM users")
-    total_users = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM users WHERE subscription_end IS NOT NULL AND subscription_end > date('now')")
-    premium_users = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT SUM(total_sos) FROM users")
-    total_sos = cursor.fetchone()[0] or 0
-    
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT COUNT(*) FROM users")
+        total_users = (await cursor.fetchone())[0]
+
+        cursor = await db.execute("SELECT COUNT(*) FROM users WHERE subscription_end IS NOT NULL AND subscription_end > date('now')")
+        premium_users = (await cursor.fetchone())[0]
+
+        cursor = await db.execute("SELECT SUM(total_sos) FROM users")
+        total_sos = (await cursor.fetchone())[0] or 0
+
     await message.answer(
-        f"📊 **Статистика бота**\n\n"
-        f"👥 **Всего пользователей:** {total_users}\n"
-        f"💎 **Premium-пользователей:** {premium_users}\n"
-        f"🆘 **Всего SOS-пауз:** {total_sos}\n\n"
+        f"📊 <b>Статистика бота</b>\n\n"
+        f"👥 <b>Всего пользователей:</b> {total_users}\n"
+        f"💎 <b>Premium-пользователей:</b> {premium_users}\n"
+        f"🆘 <b>Всего SOS-пауз:</b> {total_sos}\n\n"
         f"📈 Бот растёт! 🌸",
         reply_markup=main_keyboard(user_id)
     )
 
+# ================= ЗАПУСК =================
+async def on_startup():
+    await create_tables()
+    print("База данных готова!")
+    print("Бот запущен!")
+
+async def main():
+    dp.include_router(router)
+    await on_startup()
+    await dp.start_polling(bot)
+
 if __name__ == '__main__':
-    from aiogram import executor
-    executor.start_polling(dp, skip_updates=True)
+    asyncio.run(main())
