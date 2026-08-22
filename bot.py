@@ -33,14 +33,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
 )''')
 conn.commit()
 
-cursor.execute('''CREATE TABLE IF NOT EXISTS letters (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    text TEXT,
-    date DATE
-)''')
-conn.commit()
-
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
@@ -51,7 +43,6 @@ class Form(StatesGroup):
     restore_step1 = State()
     restore_step2 = State()
     restore_step3 = State()
-    letter_waiting = State()
     waiting_for_terms = State()
 
 # ===== ПРОВЕРКА PREMIUM =====
@@ -107,6 +98,7 @@ def main_keyboard(user_id):
         KeyboardButton("🤝 Восстановить контакт")
     )
     keyboard.add(
+        KeyboardButton("📚 Общие рекомендации по возрасту"),
         KeyboardButton("📞 Помощь")
     )
     
@@ -176,8 +168,8 @@ def get_kids_techniques(age_group):
                 "🧩 **Техника «Пять минут вместе»**\n\nПроведи 5 минут только с ребёнком."
             ]
         },
-        "7_10": {
-            "title": "👦 Техники для детей 7-10 лет",
+        "7_9": {
+            "title": "👦 Техники для детей 7-9 лет",
             "tips": [
                 "🤗 **Техника «Обними-меня»**\n\nСпроси: «Обняться или поговорить?»",
                 "🎨 **Техника «Рисуем обиду»**\n\nНарисуй свои чувства.",
@@ -186,8 +178,8 @@ def get_kids_techniques(age_group):
                 "🔄 **Техника «Круг благодарности»**\n\nНапишите друг другу, за что вы благодарны."
             ]
         },
-        "extra": {
-            "title": "🧸 Дополнительные техники для детей до 12 лет",
+        "10_12": {
+            "title": "👦 Техники для детей 10-12 лет",
             "tips": [
                 "💬 **Техника «Я-сообщение +»**\n\n«Я чувствую... (свои чувства) Потому что... (причина) Я знаю, что ты... (чувства ребёнка) Давай... (предложение)»\n\nПример: «Я чувствую усталость, потому что у меня был тяжёлый день. Я знаю, что ты тоже устал. Давай вместе почитаем книгу и обнимемся?»",
                 "✨ **Техника «Светящиеся руки»**\n\n1️⃣ Потри ладони друг о друга, чтобы они стали тёплыми.\n2️⃣ Представь, что от них исходит тёплый золотистый свет.\n3️⃣ Подойди к ребёнку и мягко положи руку на его плечо.\n4️⃣ Скажи: «Я рядом. Я тебя люблю». Постой так 10 секунд.\n\n💡 Тепло рук передаёт любовь без слов.",
@@ -366,6 +358,155 @@ def get_support_message(category):
         }
     }
     return messages.get(category, messages["welcome"])
+
+# ===== ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ =====
+def get_age_keyboard():
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("👶 1-3 года", callback_data="age_1_3"),
+        InlineKeyboardButton("🧒 4-6 лет", callback_data="age_4_6")
+    )
+    keyboard.add(
+        InlineKeyboardButton("👦 7-10 лет", callback_data="age_7_10"),
+        InlineKeyboardButton("👧 11-14 лет", callback_data="age_11_14")
+    )
+    keyboard.add(
+        InlineKeyboardButton("🧑 15-18 лет", callback_data="age_15_18"),
+        InlineKeyboardButton("👩 18+ лет", callback_data="age_18_plus")
+    )
+    keyboard.add(
+        InlineKeyboardButton("📚 Общие рекомендации", callback_data="age_general")
+    )
+    return keyboard
+
+def get_advice_by_age(age_group):
+    advice = {
+        "age_1_3": {
+            "title": "👶 Дети 1-3 года",
+            "tips": [
+                "🧸 **Кризис 3 лет** — это нормально.",
+                "🫂 **Обнимайте чаще**.",
+                "🔄 **Переключайте внимание**.",
+                "😌 **Сохраняйте спокойствие**.",
+                "🗣️ **Говорите простыми фразами**.",
+                "⏰ **Режим дня** — основа спокойствия.",
+                "🎮 **Игра — главный способ обучения**."
+            ],
+            "restore_techniques": [
+                "🤗 **Обними-меня**",
+                "🔄 **Переключение**",
+                "🧸 **Игрушка-мирилка**"
+            ]
+        },
+        "age_4_6": {
+            "title": "🧒 Дети 4-6 лет",
+            "tips": [
+                "🎨 **Развивайте фантазию**.",
+                "🤝 **Учите договариваться**.",
+                "📖 **Читайте вместе**.",
+                "⏱️ **Давайте выбор**.",
+                "👂 **Слушайте внимательно**.",
+                "🏆 **Хвалите за старания**.",
+                "😤 **Истерики — способ выразить эмоции**."
+            ],
+            "restore_techniques": [
+                "🤗 **Обними-меня**",
+                "🎨 **Рисуем обиду**",
+                "🌊 **Дыхание вместе**"
+            ]
+        },
+        "age_7_10": {
+            "title": "👦 Дети 7-10 лет",
+            "tips": [
+                "📚 **Школа — новый стресс**.",
+                "🤗 **Поддерживайте дружбу**.",
+                "⏰ **Учите планировать время**.",
+                "🗣️ **Обсуждайте чувства**.",
+                "🎮 **Игры и спорт** помогают.",
+                "📱 **Устанавливайте правила**.",
+                "💪 **Хвалите за самостоятельность**."
+            ],
+            "restore_techniques": [
+                "🤗 **Обними-меня**",
+                "🎨 **Рисуем обиду**",
+                "🧩 **Стоп-фраза**"
+            ]
+        },
+        "age_11_14": {
+            "title": "👧 Дети 11-14 лет",
+            "tips": [
+                "🔥 **Подростковый кризис** — норма.",
+                "🤝 **Будьте другом**.",
+                "🗣️ **Не критикуйте внешность**.",
+                "📱 **Интернет-безопасность**.",
+                "👂 **Слушайте без осуждения**.",
+                "💪 **Давайте свободу**.",
+                "💕 **Говорите о любви**."
+            ],
+            "restore_techniques": [
+                "🛑 **Стоп-сигнал**",
+                "✍️ **Я-сообщение**",
+                "🍲 **Действие без слов**"
+            ]
+        },
+        "age_15_18": {
+            "title": "🧑 Дети 15-18 лет",
+            "tips": [
+                "🎯 **Поддерживайте выбор профессии**.",
+                "🤝 **Отношения на равных**.",
+                "🗣️ **Обсуждайте будущее**.",
+                "💕 **Говорите о чувствах**.",
+                "📱 **Доверяйте, но проверяйте**.",
+                "💪 **Поддерживайте самостоятельность**.",
+                "❤️ **Будьте рядом**."
+            ],
+            "restore_techniques": [
+                "🛑 **Стоп-сигнал**",
+                "✍️ **Я-сообщение**",
+                "🍲 **Действие без слов**"
+            ]
+        },
+        "age_18_plus": {
+            "title": "👩 Взрослые дети (18+ лет)",
+            "tips": [
+                "🤝 **Отношения на равных**.",
+                "🗣️ **Советуйте, но не навязывайте**.",
+                "🫂 **Будьте опорой**.",
+                "💕 **Принимайте выборы**.",
+                "📱 **Не вмешивайтесь**.",
+                "💰 **Финансовая поддержка** должна уменьшаться.",
+                "👂 **Слушайте без осуждения**.",
+                "💝 **Продолжайте проявлять любовь**.",
+                "🔄 **Пересмотрите роль «родитель»**.",
+                "🙏 **Прощайте ошибки**.",
+                "💬 **Учитесь диалогу**.",
+                "🌟 **Радуйтесь успехам**."
+            ],
+            "restore_techniques": [
+                "🛑 **Стоп-сигнал**",
+                "✍️ **Я-сообщение**",
+                "🍲 **Действие без слов**"
+            ]
+        },
+        "age_general": {
+            "title": "📚 Общие рекомендации для всех возрастов",
+            "tips": [
+                "❤️ **Безусловная любовь**.",
+                "👂 **Слушайте активно**.",
+                "😌 **Контролируйте свои эмоции**.",
+                "🔄 **Устанавливайте чёткие границы**.",
+                "🤗 **Обнимайте каждый день**.",
+                "📖 **Читайте и обсуждайте**.",
+                "🙏 **Будьте примером**."
+            ],
+            "restore_techniques": [
+                "🛑 **Стоп-сигнал**",
+                "✍️ **Я-сообщение**",
+                "🍲 **Действие без слов**"
+            ]
+        }
+    }
+    return advice.get(age_group, advice["age_general"])
 
 # ===== ЮРИДИЧЕСКИЙ БЛОК =====
 POLICY_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ПОЛИТИКА/edit"
@@ -611,6 +752,26 @@ async def observer(message: types.Message):
         reply_markup=sos_keyboard()
     )
 
+# ===== КНОПКА "ПРИГЛАСИТЬ ПОДРУГУ" =====
+@dp.message_handler(lambda message: message.text == "👥 Пригласить подругу")
+async def referral(message: types.Message):
+    user_id = message.from_user.id
+    cursor.execute("SELECT referral_code FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    if result:
+        code = result[0]
+    else:
+        code = generate_referral_code(user_id)
+    bot_username = (await bot.get_me()).username
+
+    await message.answer(
+        f"👥 **Твоя реферальная ссылка:**\n"
+        f"`https://t.me/{bot_username}?start={code}`\n\n"
+        "🌸 Поделись с подругой — поддержка важна для каждой мамы.\n"
+        "✨ А ещё мы подарим вам обеим +3 дня к статистике спокойствия!",
+        reply_markup=main_keyboard(user_id)
+    )
+
 # ===== КНОПКА "ВОССТАНОВЛЕНИЕ КОНТАКТА" =====
 @dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт")
 async def restore_contact(message: types.Message):
@@ -621,33 +782,19 @@ async def restore_contact(message: types.Message):
         keyboard = InlineKeyboardMarkup(row_width=2)
         keyboard.add(
             InlineKeyboardButton("🔄 Начать восстановление", callback_data="start_restore"),
-            InlineKeyboardButton("🧠 Стоп-кадр", callback_data="tech_stop_frame"),
-            InlineKeyboardButton("👁️ Наблюдатель", callback_data="tech_observer"),
-            InlineKeyboardButton("💬 Я-сообщение +", callback_data="tech_ya_plus"),
-            InlineKeyboardButton("✨ Светящиеся руки", callback_data="tech_hands"),
-            InlineKeyboardButton("☁️ Облако мира", callback_data="tech_cloud"),
-            InlineKeyboardButton("🗣️ Честность без оправданий", callback_data="tech_honest"),
-            InlineKeyboardButton("🧩 Спроси, а не учи", callback_data="tech_ask"),
-            InlineKeyboardButton("🎯 Совет по запросу", callback_data="tech_advice"),
-            InlineKeyboardButton("📱 Музыка-мостик", callback_data="tech_music"),
-            InlineKeyboardButton("🧘 Письмо ребёнку", callback_data="tech_letter"),
+            InlineKeyboardButton("🌸 Ресурсные техники для мамы", callback_data="resource_techniques"),
+            InlineKeyboardButton("🧸 Техники для малышей", callback_data="kids_restore"),
+            InlineKeyboardButton("🧑 Техники для подростков и 18+", callback_data="teen_restore"),
             InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main")
         )
         
         await message.answer(
             "🤝 **Восстановление контакта**\n\n"
-            "Выбери технику, которая поможет восстановить отношения:\n\n"
-            "🔄 **Начать восстановление** — пошаговый план\n"
-            "🧠 **Стоп-кадр** — найти точку остановки\n"
-            "👁️ **Наблюдатель** — взгляд со стороны\n"
-            "💬 **Я-сообщение +** — честный диалог\n"
-            "✨ **Светящиеся руки** — для малышей\n"
-            "☁️ **Облако мира** — отпустить обиду\n"
-            "🗣️ **Честность без оправданий** — для подростков\n"
-            "🧩 **Спроси, а не учи** — диалог на равных\n"
-            "🎯 **Совет по запросу** — для взрослых детей\n"
-            "📱 **Музыка-мостик** — через музыку\n"
-            "🧘 **Письмо ребёнку** — выплеснуть эмоции",
+            "Выбери категорию:\n\n"
+            "🔄 **Начать восстановление** — пошаговый план (3 шага)\n"
+            "🌸 **Ресурсные техники для мамы** — 5 техник для восстановления ресурса\n"
+            "🧸 **Техники для малышей** — для детей 1-12 лет\n"
+            "🧑 **Техники для подростков и 18+** — 6 техник для взрослых детей",
             reply_markup=keyboard
         )
         return
@@ -662,8 +809,7 @@ async def restore_contact(message: types.Message):
         reply_markup=keyboard
     )
 
-# ===== ТЕХНИКИ ДЛЯ ВОССТАНОВЛЕНИЯ КОНТАКТА =====
-
+# ===== НАЧАЛО ВОССТАНОВЛЕНИЯ =====
 @dp.callback_query_handler(lambda c: c.data == "start_restore")
 async def start_restore_callback(callback_query: types.CallbackQuery, state: FSMContext):
     await callback_query.message.delete()
@@ -742,243 +888,236 @@ async def restore_step4(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
-# ===== ТЕХНИКИ ДЛЯ ВОССТАНОВЛЕНИЯ КОНТАКТА =====
-
-@dp.callback_query_handler(lambda c: c.data == "tech_stop_frame")
-async def tech_stop_frame(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "🎯 **Техника «Стоп-кадр»**\n\n"
-        "Ты уже осознала, что сорвалась. Теперь давай разберём ситуацию.\n\n"
-        "1️⃣ Закрой глаза и прокрути ситуацию как фильм.\n"
-        "2️⃣ Найди момент, когда ты ещё могла сказать мягко.\n"
-        "3️⃣ Назови этот момент — твой «стоп-кадр».\n"
-        "4️⃣ Придумай фразу, которую нужно было сказать вместо крика.\n"
-        "5️⃣ Запомни эту фразу. Она — твой новый инструмент.\n\n"
-        "💡 Это упражнение превращает ошибку в опыт.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
+# ===== РЕСУРСНЫЕ ТЕХНИКИ ДЛЯ МАМЫ =====
+@dp.callback_query_handler(lambda c: c.data == "resource_techniques")
+async def resource_techniques(callback_query: types.CallbackQuery):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        InlineKeyboardButton("🌬️ Квадратное дыхание", callback_data="res_breath"),
+        InlineKeyboardButton("✍️ Список благодарности", callback_data="res_gratitude"),
+        InlineKeyboardButton("🫂 Разрешение на отдых", callback_data="res_rest"),
+        InlineKeyboardButton("🌅 Луч света", callback_data="res_light"),
+        InlineKeyboardButton("🎵 Музыкальная пауза", callback_data="res_music"),
+        InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
     )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_observer")
-async def tech_observer(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "👁️ **Техника «Наблюдатель»**\n\n"
-        "1️⃣ Закрой глаза и представь, что ты смотришь на себя со стороны.\n"
-        "2️⃣ Ты видишь маму и ребёнка после ссоры.\n"
-        "3️⃣ Что ты видишь? Какие эмоции? Что происходит?\n"
-        "4️⃣ Теперь представь, что ты — мудрый друг, который даёт совет этой маме.\n"
-        "5️⃣ Что бы ты ей сказала?\n\n"
-        "💡 Взгляд со стороны помогает увидеть решение.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_ya_plus")
-async def tech_ya_plus(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "💬 **Техника «Я-сообщение +»**\n\n"
-        "Это продвинутая версия «Я-сообщения». Ты говоришь о своих чувствах + признаёшь чувства ребёнка.\n\n"
-        "📝 **Структура:**\n"
-        "«Я чувствую... (свои чувства)\n"
-        "Потому что... (причина)\n"
-        "Я знаю, что ты... (чувства ребёнка)\n"
-        "Давай... (предложение)»\n\n"
-        "📌 **Пример:**\n"
-        "«Я чувствую усталость и раздражение, потому что у меня был тяжёлый день.\n"
-        "Я знаю, что ты тоже устал и хочешь внимания.\n"
-        "Давай вместе почитаем книгу и обнимемся?»\n\n"
-        "💡 Признание чувств ребёнка снимает его защиту.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_hands")
-async def tech_hands(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "✨ **Техника «Светящиеся руки»**\n\n"
-        "1️⃣ Потри ладони друг о друга, чтобы они стали тёплыми.\n"
-        "2️⃣ Представь, что от них исходит тёплый золотистый свет.\n"
-        "3️⃣ Подойди к ребёнку и мягко положи руку на его плечо.\n"
-        "4️⃣ Скажи: «Я рядом. Я тебя люблю».\n"
-        "5️⃣ Постой так 10 секунд.\n\n"
-        "💡 Тепло рук передаёт любовь без слов.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_cloud")
-async def tech_cloud(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "☁️ **Техника «Облако мира»**\n\n"
-        "1️⃣ Закрой глаза.\n"
-        "2️⃣ Представь большое пушистое облако.\n"
-        "3️⃣ Мысленно положи в это облако свою обиду, гнев, раздражение.\n"
-        "4️⃣ Посмотри, как облако медленно уплывает, унося все негативные чувства.\n"
-        "5️⃣ Когда облако исчезнет, почувствуй лёгкость и спокойствие.\n"
-        "6️⃣ Открой глаза и скажи: «Я отпускаю всё плохое. Я начинаю заново».\n\n"
-        "💡 Визуализация помогает отпустить эмоции.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_honest")
-async def tech_honest(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "🗣️ **Техника «Честность без оправданий»**\n\n"
-        "Подростки и взрослые дети ненавидят оправдания.\n"
-        "«Я устала», «Я не хотела», «Ты сам меня довёл» — это только злит.\n\n"
-        "🔹 **Что сказать:**\n"
-        "Вместо оправданий скажи коротко и честно:\n\n"
-        "«Я была неправа. Прости.»\n\n"
-        "Или:\n"
-        "«Я сорвалась на тебе. Это было неправильно.»\n\n"
-        "💡 Без оправданий. Без объяснений. Просто признание ошибки.\n"
-        "Это вызывает уважение, а не раздражение.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_ask")
-async def tech_ask(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "🧩 **Техника «Спроси, а не учи»**\n\n"
-        "Подростки ненавидят, когда их учат жизни.\n"
-        "Им нужен диалог, а не лекция.\n\n"
-        "🔹 **Что спросить:**\n"
-        "«Что ты думаешь об этом?»\n"
-        "«Как ты видишь эту ситуацию?»\n"
-        "«Что для тебя сейчас важно?»\n"
-        "«Что я могу сделать, чтобы тебе было легче?»\n\n"
-        "💡 Когда ты спрашиваешь — ты показываешь уважение.\n"
-        "Когда ты учишь — ты показываешь превосходство.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_advice")
-async def tech_advice(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "🎯 **Техника «Совет только по запросу»**\n\n"
-        "Взрослые дети не любят непрошенные советы.\n\n"
-        "🔹 **Что делать:**\n"
-        "❌ Не говори: «Я бы на твоём месте...»\n"
-        "✅ Спроси: «Хочешь, я поделюсь своим мнением?»\n"
-        "✅ Если он говорит «нет» — прими это.\n\n"
-        "💡 Непрошенный совет — это вторжение.\n"
-        "Запрошенный совет — это помощь.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_music")
-async def tech_music(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(
-        "📱 **Техника «Музыка-мостик»**\n\n"
-        "Музыка объединяет лучше слов.\n\n"
-        "🔹 **Что делать:**\n"
-        "1️⃣ Спроси: «Что ты сейчас слушаешь? Можешь скинуть плейлист?»\n"
-        "2️⃣ Если он скидывает — это большой шаг. Значит, он готов делиться своим миром.\n"
-        "3️⃣ Послушай, что он скинул.\n"
-        "4️⃣ Скажи: «Классная песня. Спасибо, что поделился».\n\n"
-        "💡 Интерес к его музыке — интерес к его миру.\n\n"
-        "🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-        )
-    )
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "tech_letter")
-async def tech_letter(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    ADMINS = [1076773869]
-    
-    if user_id not in ADMINS and not is_premium(user_id):
-        await callback_query.message.edit_text(
-            "🔒 Этот раздел доступен только Premium-пользователям.",
-            reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
-            )
-        )
-        await callback_query.answer()
-        return
     
     await callback_query.message.edit_text(
-        "🧘 **Упражнение «Письмо ребёнку»**\n\n"
-        "Это письмо — только для тебя. Ты не обязана его отправлять.\n\n"
-        "Напиши письмо своему ребёнку, начиная с фразы:\n\n"
-        "«Мой любимый ребёнок...»\n\n"
-        "Когда закончишь — прочитай письмо вслух себе.\n"
-        "А потом... сожги его или удали.\n\n"
-        "Ты имеешь право на свои чувства. ❤️\n\n"
-        "📝 Напиши письмо одним сообщением (я сохраню его для тебя в тайне):",
-        reply_markup=main_keyboard(user_id)
+        "🌸 **Ресурсные техники для мамы**\n\n"
+        "Эти техники помогут тебе восстановить силы, успокоиться и наполниться энергией.\n\n"
+        "Выбери технику:",
+        reply_markup=keyboard
     )
-    await state.set_state("letter_waiting")
     await callback_query.answer()
 
-@dp.message_handler(state="letter_waiting", content_types=['text'])
-async def letter_save(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-    text = message.text
+@dp.callback_query_handler(lambda c: c.data.startswith("res_"))
+async def show_resource_technique(callback_query: types.CallbackQuery):
+    technique = callback_query.data.replace("res_", "")
     
-    cursor.execute("INSERT INTO letters (user_id, text, date) VALUES (?, ?, ?)",
-                   (user_id, text, datetime.now().strftime('%Y-%m-%d')))
-    conn.commit()
+    techniques_texts = {
+        "breath": (
+            "🌬️ **Техника «Квадратное дыхание»**\n\n"
+            "Это дыхание помогает вернуть контроль над эмоциями за 1 минуту.\n\n"
+            "1️⃣ Вдох — 4 секунды\n"
+            "2️⃣ Задержка — 4 секунды\n"
+            "3️⃣ Выдох — 4 секунды\n"
+            "4️⃣ Задержка — 4 секунды\n\n"
+            "🔄 Повтори 5 раз.\n\n"
+            "💡 Представь, что ты рисуешь дыханием квадрат. Это переключает мозг с эмоций на логику."
+        ),
+        "gratitude": (
+            "✍️ **Техника «Список благодарности»**\n\n"
+            "Ты так много даёшь другим. А теперь дай себе пару минут.\n\n"
+            "1️⃣ Возьми лист бумаги или открой заметки в телефоне.\n"
+            "2️⃣ Напиши 3 вещи, за которые ты благодарна себе сегодня.\n"
+            "   • «Я благодарна себе за то, что...»\n"
+            "   • «Я благодарна себе за то, что...»\n"
+            "   • «Я благодарна себе за то, что...»\n"
+            "3️⃣ Прочитай это вслух себе.\n\n"
+            "📌 **Примеры:**\n"
+            "• «Я благодарна себе за то, что нашла время выпить чай»\n"
+            "• «Я благодарна себе за то, что не сорвалась на ребёнка»\n"
+            "• «Я благодарна себе за то, что я — хорошая мама»\n\n"
+            "💡 Благодарность к себе — это топливо для души."
+        ),
+        "rest": (
+            "🫂 **Техника «Разрешение на отдых»**\n\n"
+            "Ты имеешь право на отдых. Без чувства вины. Без оправданий.\n\n"
+            "1️⃣ Сядь удобно и закрой глаза.\n"
+            "2️⃣ Скажи себе вслух:\n"
+            "   «Я разрешаю себе отдохнуть.\n"
+            "   Я разрешаю себе быть уставшей.\n"
+            "   Я разрешаю себе ничего не делать.\n"
+            "   Я заслуживаю отдыха».\n\n"
+            "3️⃣ Позволь себе 5 минут тишины. Просто посиди, не делай ничего.\n\n"
+            "💡 Отдых — это не роскошь. Это необходимость. Ты заслуживаешь его."
+        ),
+        "light": (
+            "🌅 **Техника «Луч света»**\n\n"
+            "Закрой глаза и представь, что сверху на тебя льётся тёплый золотистый свет.\n\n"
+            "1️⃣ Свет мягко касается твоей головы — ты чувствуешь тепло.\n"
+            "2️⃣ Он опускается на плечи — снимает тяжесть и напряжение.\n"
+            "3️⃣ Он доходит до груди — наполняет тебя спокойствием.\n"
+            "4️⃣ Он разливается по всему телу — ты чувствуешь лёгкость и силу.\n\n"
+            "💡 Побудь в этом свете 2-3 минуты. Когда откроешь глаза — ты почувствуешь себя обновлённой."
+        ),
+        "music": (
+            "🎵 **Техника «Музыкальная пауза»**\n\n"
+            "Музыка лечит. Музыка успокаивает. Музыка возвращает к себе.\n\n"
+            "1️⃣ Включи свою любимую песню.\n"
+            "2️⃣ Закрой глаза и слушай только музыку.\n"
+            "3️⃣ Не думай ни о чём. Просто чувствуй.\n"
+            "4️⃣ Если мысли приходят — отпускай их и возвращайся к музыке.\n\n"
+            "💡 3 минуты музыки могут дать больше отдыха, чем час в социальных сетях."
+        )
+    }
     
-    await message.answer(
-        "✅ **Письмо сохранено.**\n\n"
-        "💝 Ты — заботливая и любящая мама.",
-        reply_markup=main_keyboard(user_id)
+    text = techniques_texts.get(technique, "Техника не найдена.")
+    
+    await callback_query.message.edit_text(
+        f"{text}\n\n"
+        f"🔙 Нажми «Назад», чтобы вернуться к списку техник.",
+        reply_markup=InlineKeyboardMarkup().add(
+            InlineKeyboardButton("🔙 Назад", callback_data="resource_techniques")
+        )
     )
-    await state.finish()
-
-# ===== НАЗАД К ТЕХНИКАМ =====
-@dp.callback_query_handler(lambda c: c.data == "back_to_restore")
-async def back_to_restore(callback_query: types.CallbackQuery, state: FSMContext):
-    await state.finish()
-    
-    class FakeMessage:
-        def __init__(self, user_id):
-            self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
-        async def answer(self, text, reply_markup=None, parse_mode=None):
-            await callback_query.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
-    
-    fake_msg = FakeMessage(callback_query.from_user.id)
-    await restore_contact(fake_msg)
     await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data == "back_to_main")
-async def back_to_main(callback_query: types.CallbackQuery):
-    await callback_query.message.delete()
-    await callback_query.message.answer(
-        "🌸 **Главное меню:**\n\n"
-        "Выберите, что вам нужно:",
-        reply_markup=main_keyboard(callback_query.from_user.id)
+# ===== ТЕХНИКИ ДЛЯ МАЛЫШЕЙ (В ВОССТАНОВЛЕНИИ КОНТАКТА) =====
+@dp.callback_query_handler(lambda c: c.data == "kids_restore")
+async def kids_restore_techniques(callback_query: types.CallbackQuery):
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("👶 1-3 года", callback_data="kids_restore_1_3"),
+        InlineKeyboardButton("🧒 4-6 лет", callback_data="kids_restore_4_6"),
+        InlineKeyboardButton("👦 7-9 лет", callback_data="kids_restore_7_9"),
+        InlineKeyboardButton("👦 10-12 лет", callback_data="kids_restore_10_12"),
+        InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
+    )
+    
+    await callback_query.message.edit_text(
+        "🧸 **Техники для малышей**\n\n"
+        "Выбери возраст ребёнка:",
+        reply_markup=keyboard
+    )
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data.startswith("kids_restore_"))
+async def show_kids_restore_technique(callback_query: types.CallbackQuery):
+    age_group = callback_query.data.replace("kids_restore_", "")
+    techniques_data = get_kids_techniques(age_group)
+    
+    tips_text = "\n\n".join(techniques_data["tips"])
+    
+    await callback_query.message.edit_text(
+        f"{techniques_data['title']}\n\n"
+        f"{tips_text}\n\n"
+        f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
+        reply_markup=InlineKeyboardMarkup().add(
+            InlineKeyboardButton("🔙 Назад", callback_data="kids_restore")
+        )
+    )
+    await callback_query.answer()
+
+# ===== ТЕХНИКИ ДЛЯ ПОДРОСТКОВ И 18+ =====
+@dp.callback_query_handler(lambda c: c.data == "teen_restore")
+async def teen_restore_techniques(callback_query: types.CallbackQuery):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        InlineKeyboardButton("👁️ Наблюдатель", callback_data="teen_observer"),
+        InlineKeyboardButton("🎯 Стоп-кадр", callback_data="teen_stop_frame"),
+        InlineKeyboardButton("🗣️ Честность без оправданий", callback_data="teen_honest"),
+        InlineKeyboardButton("🎯 Совет по запросу", callback_data="teen_advice"),
+        InlineKeyboardButton("📱 Музыка-мостик", callback_data="teen_music"),
+        InlineKeyboardButton("🧩 Спроси, а не учи", callback_data="teen_ask"),
+        InlineKeyboardButton("🔙 Назад", callback_data="back_to_restore")
+    )
+    
+    await callback_query.message.edit_text(
+        "🧑 **Техники для подростков и детей 18+**\n\n"
+        "Эти техники помогут восстановить контакт с подростками и взрослыми детьми.\n\n"
+        "Выбери технику:",
+        reply_markup=keyboard
+    )
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data.startswith("teen_"))
+async def show_teen_technique(callback_query: types.CallbackQuery):
+    technique = callback_query.data.replace("teen_", "")
+    
+    techniques_texts = {
+        "observer": (
+            "👁️ **Техника «Наблюдатель»**\n\n"
+            "1️⃣ Закрой глаза и представь, что ты смотришь на себя со стороны.\n"
+            "2️⃣ Ты видишь маму и ребёнка после ссоры.\n"
+            "3️⃣ Что ты видишь? Какие эмоции? Что происходит?\n"
+            "4️⃣ Теперь представь, что ты — мудрый друг, который даёт совет этой маме.\n"
+            "5️⃣ Что бы ты ей сказала?\n\n"
+            "💡 Взгляд со стороны помогает увидеть решение."
+        ),
+        "stop_frame": (
+            "🎯 **Техника «Стоп-кадр»**\n\n"
+            "Ты уже осознала, что сорвалась. Теперь давай разберём ситуацию.\n\n"
+            "1️⃣ Закрой глаза и прокрути ситуацию как фильм.\n"
+            "2️⃣ Найди момент, когда ты ещё могла сказать мягко.\n"
+            "3️⃣ Назови этот момент — твой «стоп-кадр».\n"
+            "4️⃣ Придумай фразу, которую нужно было сказать вместо крика.\n"
+            "5️⃣ Запомни эту фразу. Она — твой новый инструмент.\n\n"
+            "💡 Это упражнение превращает ошибку в опыт."
+        ),
+        "honest": (
+            "🗣️ **Техника «Честность без оправданий»**\n\n"
+            "Подростки и взрослые дети ненавидят оправдания.\n"
+            "«Я устала», «Я не хотела», «Ты сам меня довёл» — это только злит.\n\n"
+            "🔹 **Что сказать:**\n"
+            "Вместо оправданий скажи коротко и честно:\n\n"
+            "«Я была неправа. Прости.»\n\n"
+            "Или:\n"
+            "«Я сорвалась на тебе. Это было неправильно.»\n\n"
+            "💡 Без оправданий. Без объяснений. Просто признание ошибки.\n"
+            "Это вызывает уважение, а не раздражение."
+        ),
+        "advice": (
+            "🎯 **Техника «Совет только по запросу»**\n\n"
+            "Взрослые дети не любят непрошенные советы.\n\n"
+            "🔹 **Что делать:**\n"
+            "❌ Не говори: «Я бы на твоём месте...»\n"
+            "✅ Спроси: «Хочешь, я поделюсь своим мнением?»\n"
+            "✅ Если он говорит «нет» — прими это.\n\n"
+            "💡 Непрошенный совет — это вторжение.\n"
+            "Запрошенный совет — это помощь."
+        ),
+        "music": (
+            "📱 **Техника «Музыка-мостик»**\n\n"
+            "Музыка объединяет лучше слов.\n\n"
+            "🔹 **Что делать:**\n"
+            "1️⃣ Спроси: «Что ты сейчас слушаешь? Можешь скинуть плейлист?»\n"
+            "2️⃣ Если он скидывает — это большой шаг. Значит, он готов делиться своим миром.\n"
+            "3️⃣ Послушай, что он скинул.\n"
+            "4️⃣ Скажи: «Классная песня. Спасибо, что поделился».\n\n"
+            "💡 Интерес к его музыке — интерес к его миру."
+        ),
+        "ask": (
+            "🧩 **Техника «Спроси, а не учи»**\n\n"
+            "Подростки ненавидят, когда их учат жизни.\n"
+            "Им нужен диалог, а не лекция.\n\n"
+            "🔹 **Что спросить:**\n"
+            "«Что ты думаешь об этом?»\n"
+            "«Как ты видишь эту ситуацию?»\n"
+            "«Что для тебя сейчас важно?»\n"
+            "«Что я могу сделать, чтобы тебе было легче?»\n\n"
+            "💡 Когда ты спрашиваешь — ты показываешь уважение.\n"
+            "Когда ты учишь — ты показываешь превосходство."
+        )
+    }
+    
+    text = techniques_texts.get(technique, "Техника не найдена.")
+    
+    await callback_query.message.edit_text(
+        f"{text}\n\n"
+        f"🔙 Нажми «Назад», чтобы вернуться к списку техник.",
+        reply_markup=InlineKeyboardMarkup().add(
+            InlineKeyboardButton("🔙 Назад", callback_data="teen_restore")
+        )
     )
     await callback_query.answer()
 
@@ -1034,14 +1173,12 @@ async def kids_techniques_menu(message: types.Message):
     ADMINS = [1076773869]
     
     if user_id in ADMINS or is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(row_width=3)
+        keyboard = InlineKeyboardMarkup(row_width=2)
         keyboard.add(
             InlineKeyboardButton("👶 1-3 года", callback_data="kids_1_3"),
             InlineKeyboardButton("🧒 4-6 лет", callback_data="kids_4_6"),
-            InlineKeyboardButton("👦 7-10 лет", callback_data="kids_7_10")
-        )
-        keyboard.add(
-            InlineKeyboardButton("🧸 Доп. техники", callback_data="kids_extra"),
+            InlineKeyboardButton("👦 7-9 лет", callback_data="kids_7_9"),
+            InlineKeyboardButton("👦 10-12 лет", callback_data="kids_10_12"),
             InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main")
         )
         
@@ -1058,7 +1195,7 @@ async def kids_techniques_menu(message: types.Message):
     )
     await message.answer(
         "🔒 **Техники для малышей доступны только Premium-пользователям.**\n\n"
-        "Оформите Premium (999 ₽/мес) и получите доступ к техникам для детей от 1 до 10 лет.",
+        "Оформите Premium (999 ₽/мес) и получите доступ к техникам для детей от 1 до 12 лет.",
         reply_markup=keyboard
     )
 
@@ -1090,14 +1227,7 @@ async def process_kids_technique(callback_query: types.CallbackQuery):
 
 @dp.callback_query_handler(lambda c: c.data == "back_to_kids")
 async def back_to_kids(callback_query: types.CallbackQuery):
-    class FakeMessage:
-        def __init__(self, user_id):
-            self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
-        async def answer(self, text, reply_markup=None, parse_mode=None):
-            await callback_query.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
-    
-    fake_msg = FakeMessage(callback_query.from_user.id)
-    await kids_techniques_menu(fake_msg)
+    await kids_techniques_menu(callback_query.message)
     await callback_query.answer()
 
 # ===== КНОПКА "АФФИРМАЦИЯ ДНЯ" (PREMIUM) =====
@@ -1146,6 +1276,83 @@ async def daily_affirmation(message: types.Message):
             reply_markup=main_keyboard(user_id)
         )
 
+# ===== КНОПКА "ОБЩИЕ РЕКОМЕНДАЦИИ ПО ВОЗРАСТУ" =====
+@dp.message_handler(lambda message: message.text == "📚 Общие рекомендации по возрасту")
+async def age_recommendations(message: types.Message):
+    await message.answer(
+        "📚 **Общие рекомендации по возрасту**\n\n"
+        "Выбери возраст своего ребёнка:",
+        reply_markup=get_age_keyboard()
+    )
+
+@dp.callback_query_handler(lambda c: c.data.startswith('age_'))
+async def process_age_choice(callback_query: types.CallbackQuery):
+    age_group = callback_query.data
+    advice_data = get_advice_by_age(age_group)
+    
+    tips_text = "\n\n".join(advice_data["tips"])
+    restore_text = "\n\n".join([f"• {t}" for t in advice_data.get("restore_techniques", [])])
+    
+    message_text = (
+        f"📚 **{advice_data['title']}**\n\n"
+        f"📋 **Рекомендации:**\n\n"
+        f"{tips_text}\n\n"
+    )
+    
+    if restore_text:
+        message_text += (
+            f"🔄 **Техники восстановления контакта:**\n\n"
+            f"{restore_text}\n\n"
+        )
+    
+    message_text += (
+        f"💡 Помни: каждый ребёнок уникален. Эти рекомендации — ориентир.\n\n"
+        f"🔙 Нажми «Назад», чтобы выбрать другой возраст."
+    )
+    
+    await callback_query.message.edit_text(
+        message_text,
+        reply_markup=InlineKeyboardMarkup().add(
+            InlineKeyboardButton("🔙 Назад к возрастам", callback_data="back_to_ages")
+        )
+    )
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "back_to_ages")
+async def back_to_ages(callback_query: types.CallbackQuery):
+    await callback_query.message.edit_text(
+        "📚 **Общие рекомендации по возрасту**\n\n"
+        "Выбери возраст своего ребёнка:",
+        reply_markup=get_age_keyboard()
+    )
+    await callback_query.answer()
+
+# ===== НАЗАД К ВОССТАНОВЛЕНИЮ КОНТАКТА =====
+@dp.callback_query_handler(lambda c: c.data == "back_to_restore")
+async def back_to_restore(callback_query: types.CallbackQuery, state: FSMContext):
+    await state.finish()
+    
+    class FakeMessage:
+        def __init__(self, user_id):
+            self.from_user = types.User(id=user_id, is_bot=False, first_name="User")
+        async def answer(self, text, reply_markup=None, parse_mode=None):
+            await callback_query.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
+    
+    fake_msg = FakeMessage(callback_query.from_user.id)
+    await restore_contact(fake_msg)
+    await callback_query.answer()
+
+# ===== НАЗАД В ГЛАВНОЕ МЕНЮ =====
+@dp.callback_query_handler(lambda c: c.data == "back_to_main")
+async def back_to_main(callback_query: types.CallbackQuery):
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        "🌸 **Главное меню:**\n\n"
+        "Выберите, что вам нужно:",
+        reply_markup=main_keyboard(callback_query.from_user.id)
+    )
+    await callback_query.answer()
+
 # ===== PREMIUM =====
 @dp.message_handler(lambda message: message.text == "💎 Premium")
 async def premium_info(message: types.Message):
@@ -1158,10 +1365,9 @@ async def premium_info(message: types.Message):
             "👑 **Вы — создатель бота!**\n\n"
             "Вам доступны все функции Premium без оплаты.\n\n"
             "✨ **Доступно:**\n"
-            "✅ Техники для малышей (1-10 лет)\n"
+            "✅ Техники для малышей (1-12 лет)\n"
             "✅ Модуль «Восстановление контакта»\n"
-            "✅ 100 аффирмаций поддержки\n"
-            "✅ Письмо ребёнку",
+            "✅ 100 аффирмаций поддержки",
             reply_markup=main_keyboard(user_id)
         )
         if not is_premium(user_id):
@@ -1190,10 +1396,9 @@ async def premium_info(message: types.Message):
     await message.answer(
         "💎 **Premium — 999 ₽/мес**\n\n"
         "✨ **Что ты получаешь:**\n"
-        "✅ Техники для малышей (1-10 лет)\n"
+        "✅ Техники для малышей (1-12 лет)\n"
         "✅ Модуль «Восстановление контакта»\n"
-        "✅ 100 аффирмаций поддержки\n"
-        "✅ Письмо ребёнку\n\n"
+        "✅ 100 аффирмаций поддержки\n\n"
         "📲 **Как оплатить:**\n"
         "1️⃣ Напишите @PauseMomSupport_bot\n"
         "2️⃣ Сообщите, что хотите оплатить Premium\n"
@@ -1267,25 +1472,6 @@ async def confirm_payment(callback_query: types.CallbackQuery):
         reply_markup=main_keyboard(user_id)
     )
     await callback_query.answer()
-
-# ===== ПРИГЛАСИТЬ ПОДРУГУ =====
-@dp.message_handler(lambda message: message.text == "👥 Пригласить подругу")
-async def referral(message: types.Message):
-    user_id = message.from_user.id
-    cursor.execute("SELECT referral_code FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    if result:
-        code = result[0]
-    else:
-        code = generate_referral_code(user_id)
-    bot_username = (await bot.get_me()).username
-
-    await message.answer(
-        f"👥 **Твоя реферальная ссылка:**\n"
-        f"`https://t.me/{bot_username}?start={code}`\n\n"
-        "🎁 Приведи подругу — получи +3 дня без криков!",
-        reply_markup=main_keyboard(user_id)
-    )
 
 # ===== ПОМОЩЬ =====
 @dp.message_handler(lambda message: message.text == "📞 Помощь")
