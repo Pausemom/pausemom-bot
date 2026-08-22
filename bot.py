@@ -85,24 +85,28 @@ def set_agreed_to_terms(user_id):
 def main_keyboard(user_id):
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     
+    # Ряд 1
     keyboard.add(
         KeyboardButton("🆘 SOS-Пауза"),
         KeyboardButton("💎 Premium")
     )
+    # Ряд 2
     keyboard.add(
         KeyboardButton("👥 Пригласить подругу"),
         KeyboardButton("💝 Нужные слова для мамы")
     )
+    # Ряд 3
     keyboard.add(
         KeyboardButton("🧸 Техники для малышей"),
         KeyboardButton("🤝 Восстановить контакт")
     )
+    # Ряд 4
     keyboard.add(
         KeyboardButton("📚 Общие рекомендации по возрасту"),
         KeyboardButton("📞 Помощь")
     )
     
-    # Аффирмация дня — только для Premium
+    # Ряд 5 — Аффирмация дня (только для Premium)
     if is_premium(user_id):
         keyboard.add(
             KeyboardButton("🌅 Аффирмация дня")
@@ -1366,6 +1370,7 @@ async def premium_info(message: types.Message):
     
     ADMINS = [1076773869]
     
+    # Админ — доступ без оплаты
     if user_id in ADMINS:
         await message.answer(
             "👑 **Вы — создатель бота!**\n\n"
@@ -1380,6 +1385,7 @@ async def premium_info(message: types.Message):
             add_premium(user_id, 36500)
         return
 
+    # Проверка Premium
     if is_premium(user_id):
         cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
         result = cursor.fetchone()
@@ -1393,6 +1399,7 @@ async def premium_info(message: types.Message):
             )
         return
 
+    # Обычное предложение Premium
     keyboard = InlineKeyboardMarkup(row_width=1)
     keyboard.add(
         InlineKeyboardButton("✅ Я оплатил(а)", callback_data="confirm_payment"),
