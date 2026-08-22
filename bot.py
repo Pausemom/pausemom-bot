@@ -74,8 +74,6 @@ class Form(StatesGroup):
     letter_waiting = State()
     safe_space_place = State()
     safe_space_rules = State()
-    kids_technique_step = State()
-    waiting_for_payment_method = State()
     waiting_for_terms = State()
 
 # ===== ПРОВЕРКА PREMIUM =====
@@ -118,37 +116,28 @@ def set_agreed_to_terms(user_id):
 def main_keyboard(user_id):
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     
-    # Первый ряд
     keyboard.add(
         KeyboardButton("🆘 SOS-Пауза"),
         KeyboardButton("📊 Моя статистика")
     )
-    
-    # Второй ряд
     keyboard.add(
         KeyboardButton("📝 Сказать мягко"),
         KeyboardButton("💎 Premium")
     )
-    
-    # Третий ряд
     keyboard.add(
         KeyboardButton("👥 Пригласить подругу"),
         KeyboardButton("🌅 Аффирмация дня")
     )
-    
-    # Четвёртый ряд
     keyboard.add(
         KeyboardButton("📚 Общие рекомендации по возрасту"),
         KeyboardButton("🧸 Техники для малышей (до 11 лет)")
     )
     
-    # Пятый ряд — Premium-функция (только если есть Premium)
     if is_premium(user_id):
         keyboard.add(
             KeyboardButton("🤝 Восстановить контакт (Premium)")
         )
     
-    # Шестой ряд — Помощь
     keyboard.add(
         KeyboardButton("📞 Помощь")
     )
@@ -860,8 +849,7 @@ async def sos(message: types.Message):
         reply_markup=sos_keyboard()
     )
 
-# ===== 10 MINDFULNESS-УПРАЖНЕНИЙ =====
-
+# ===== ВСЕ 10 УПРАЖНЕНИЙ SOS =====
 @dp.message_handler(lambda message: message.text == "🌬️ Дыхание 4-7-8")
 async def breathe(message: types.Message):
     await message.answer(
@@ -872,12 +860,6 @@ async def breathe(message: types.Message):
         "🔄 Повтори **5 раз**.\n\n"
         "✨ Это снижает уровень кортизола (гормона стресса).",
         reply_markup=sos_keyboard()
-    )
-    await asyncio.sleep(10)
-    await message.answer(
-        "✅ Ты справилась!\n\n"
-        "Ты вернула себе контроль. Теперь ты — спокойная и любящая мама.",
-        reply_markup=main_keyboard(message.from_user.id)
     )
 
 @dp.message_handler(lambda message: message.text == "🧘 Осознанное дыхание")
@@ -893,11 +875,6 @@ async def mindful_breath(message: types.Message):
         "✨ Это возвращает тебя в «здесь и сейчас».",
         reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(10)
-    await message.answer(
-        "🕊️ Ты дышишь осознанно. Гнев уходит, спокойствие приходит.",
-        reply_markup=main_keyboard(message.from_user.id)
-    )
 
 @dp.message_handler(lambda message: message.text == "👀 5-4-3-2-1")
 async def grounding(message: types.Message):
@@ -912,11 +889,6 @@ async def grounding(message: types.Message):
         "✨ Это возвращает мозг в реальность.",
         reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(10)
-    await message.answer(
-        "🌿 Ты вернулась в реальность. Ты в безопасности.",
-        reply_markup=main_keyboard(message.from_user.id)
-    )
 
 @dp.message_handler(lambda message: message.text == "🤗 Обнять себя")
 async def self_hug(message: types.Message):
@@ -929,11 +901,6 @@ async def self_hug(message: types.Message):
         "✨ Это успокаивает нервную систему.",
         reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(10)
-    await message.answer(
-        "🦋 Ты молодец! Нервная система успокоилась.",
-        reply_markup=main_keyboard(message.from_user.id)
-    )
 
 @dp.message_handler(lambda message: message.text == "💧 Умыться водой")
 async def wash(message: types.Message):
@@ -944,11 +911,6 @@ async def wash(message: types.Message):
         "3️⃣ Почувствуй, как вода смывает гнев\n\n"
         "✨ Это запускает «нырятельный рефлекс» — пульс замедляется.",
         reply_markup=sos_keyboard()
-    )
-    await asyncio.sleep(10)
-    await message.answer(
-        "💧 Отлично! Теперь скажи: «Я хорошая мама»",
-        reply_markup=main_keyboard(message.from_user.id)
     )
 
 @dp.message_handler(lambda message: message.text == "🦶 Стойка на ногах")
@@ -965,11 +927,6 @@ async def standing(message: types.Message):
         "✨ Это возвращает тебя в тело.",
         reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(10)
-    await message.answer(
-        "🦶 Ты снова ощущаешь своё тело. Спокойствие возвращается.",
-        reply_markup=main_keyboard(message.from_user.id)
-    )
 
 @dp.message_handler(lambda message: message.text == "🧠 Сканирование тела")
 async def body_scan(message: types.Message):
@@ -983,11 +940,6 @@ async def body_scan(message: types.Message):
         "👤 **Лицо** — расслаблены ли мышцы?\n\n"
         "✨ Это снимает напряжение.",
         reply_markup=sos_keyboard()
-    )
-    await asyncio.sleep(10)
-    await message.answer(
-        "🧠 Ты просканировала тело. Напряжение уходит.",
-        reply_markup=main_keyboard(message.from_user.id)
     )
 
 @dp.message_handler(lambda message: message.text == "☀️ Луч света")
@@ -1005,11 +957,6 @@ async def light_beam(message: types.Message):
         "✨ Свет растворяет гнев.",
         reply_markup=sos_keyboard()
     )
-    await asyncio.sleep(10)
-    await message.answer(
-        "☀️ Ты наполнена светом и спокойствием.",
-        reply_markup=main_keyboard(message.from_user.id)
-    )
 
 @dp.message_handler(lambda message: message.text == "🌊 Волна дыхания")
 async def wave_breath(message: types.Message):
@@ -1023,11 +970,6 @@ async def wave_breath(message: types.Message):
         "🔄 Повтори **5 раз** как волны океана\n\n"
         "✨ Волны смывают гнев и тревогу.",
         reply_markup=sos_keyboard()
-    )
-    await asyncio.sleep(10)
-    await message.answer(
-        "🌊 Ты как океан — спокойная и глубокая.",
-        reply_markup=main_keyboard(message.from_user.id)
     )
 
 @dp.message_handler(lambda message: message.text == "💭 Наблюдатель")
@@ -1044,11 +986,6 @@ async def observer(message: types.Message):
         "5️⃣ Ты не злость — ты просто **наблюдаешь** её.\n\n"
         "✨ Ты отделяешь себя от эмоций.",
         reply_markup=sos_keyboard()
-    )
-    await asyncio.sleep(10)
-    await message.answer(
-        "💭 Ты — наблюдатель. Ты не злость, ты — спокойствие.",
-        reply_markup=main_keyboard(message.from_user.id)
     )
 
 # ===== СКАЗАТЬ МЯГКО =====
@@ -1085,124 +1022,52 @@ async def soft_phrase(message: types.Message, state: FSMContext):
 async def process_phrase(message: types.Message, state: FSMContext):
     user_text = message.text.lower()
     
-    keywords = {
-        "anger": [
-            "убери", "сделай", "прекрати", "заткнись", "замолчи", "уйди",
-            "надоел", "достал", "замучил", "бесишь", "злишь", "раздражаешь",
-            "идиот", "дурак", "тупой", "глупый", "бездарь", "лентяй",
-            "не делай", "не трогай", "не мешай", "опять", "снова", "вечно"
-        ],
-        "tired": [
-            "устал", "устала", "вымотан", "измучен", "нет сил",
-            "не справляюсь", "не получается", "сложно", "трудно", "тяжело",
-            "помощь", "помоги", "поддержка", "поддержи"
-        ],
-        "play": [
-            "игрушки", "играть", "поиграть", "строить", "рисовать",
-            "читать", "лепить", "прыгать", "бегать", "танцевать",
-            "кубики", "конструктор", "пазлы", "машинки", "куклы"
-        ],
-        "love": [
-            "люблю", "обожаю", "обнимаю", "целую",
-            "спасибо", "благодарю", "горжусь", "восхищаюсь",
-            "молодец", "умница", "солнышко", "зайка"
-        ],
-        "sad": [
-            "обидно", "грустно", "печально", "страшно", "боюсь",
-            "переживаю", "тревожусь", "расстроен", "расстроена", "плачу"
-        ],
-        "daily": [
-            "еда", "кушать", "есть", "пить", "сон", "спать",
-            "школа", "сад", "уроки", "домашка", "завтрак", "обед", "ужин"
-        ],
-        "study": [
-            "уроки", "домашка", "школа", "учиться", "читать", "писать",
-            "решать", "заниматься", "делать", "задание"
-        ]
-    }
+    # Простая логика: если есть ключевые слова злости — выдаём успокаивающую фразу
+    anger_words = ["убери", "сделай", "прекрати", "заткнись", "надоел", "достал", "бесишь", "идиот", "дурак", "тупой", "опять", "снова"]
+    tired_words = ["устал", "устала", "нет сил", "не справляюсь", "сложно", "трудно", "помощь", "помоги"]
+    play_words = ["игрушки", "играть", "поиграть", "строить", "рисовать", "кубики", "конструктор", "пазлы"]
+    love_words = ["люблю", "обожаю", "спасибо", "горжусь", "молодец", "умница", "солнышко"]
     
-    scores = {category: 0 for category in keywords}
-    for category, words in keywords.items():
-        for word in words:
-            if word in user_text:
-                scores[category] += 1
-    
-    main_category = max(scores, key=scores.get)
-    if scores[main_category] == 0:
-        main_category = "neutral"
-    
-    soft_phrases = {
-        "anger": [
+    if any(word in user_text for word in anger_words):
+        selected = random.choice([
             "Солнышко, я тебя очень люблю. Давай сделаем это вместе?",
             "Мой хороший, мне нужна твоя помощь. Пожалуйста, помоги мне.",
             "Давай остановимся и подышим. Я рядом с тобой.",
-            "Ты мой самый важный человечек. Давай решим это спокойно.",
-            "Я знаю, что ты можешь меня услышать. Спасибо, что слушаешь."
-        ],
-        "tired": [
+            "Ты мой самый важный человечек. Давай решим это спокойно."
+        ])
+        explanation = "🌿 Я переделала твою злую фразу в мягкую и добрую."
+    elif any(word in user_text for word in tired_words):
+        selected = random.choice([
             "Я устала, но я всё равно тебя люблю. Давай договоримся.",
             "Мне нужна твоя помощь. Пожалуйста, поддержи меня.",
             "Я рядом с тобой всегда. Ты не одна.",
-            "Мы обязательно справимся, потому что мы вместе.",
-            "Ты удивительный человек. Я знаю, что у нас всё получится."
-        ],
-        "play": [
+            "Мы обязательно справимся, потому что мы вместе."
+        ])
+        explanation = "🫂 Я слышу, что ты устала. Давай я помогу тебе сказать это мягко."
+    elif any(word in user_text for word in play_words):
+        selected = random.choice([
             "Давай поиграем вместе! Я так люблю проводить с тобой время.",
             "Играть с тобой — моё самое большое удовольствие.",
             "Ты так здорово играешь! Давай я помогу тебе.",
-            "Я люблю смотреть, как ты играешь. Давай я буду рядом.",
-            "У тебя так интересно получается! Давай продолжим игру."
-        ],
-        "love": [
+            "Я люблю смотреть, как ты играешь. Давай я буду рядом."
+        ])
+        explanation = "🎮 Это про игру! Скажи так, и ребёнок с радостью откликнется."
+    elif any(word in user_text for word in love_words):
+        selected = random.choice([
             "Ты такой молодец! Я горжусь тобой каждый день.",
             "У тебя всё получается! Я вижу, как ты стараешься.",
             "Ты очень добрый и внимательный. Спасибо тебе.",
-            "Как хорошо, что ты у меня есть! Ты мой подарок судьбы.",
-            "Ты делаешь этот мир лучше. Спасибо, что ты есть."
-        ],
-        "sad": [
-            "Я понимаю, что тебе грустно. Я рядом, чтобы поддержать тебя.",
-            "Ты не один. Мы вместе справимся с этим.",
-            "Я хочу понять тебя. Расскажи мне, что ты чувствуешь.",
-            "Мы справимся, потому что мы — семья. Давай обнимемся?",
-            "Я слушаю тебя. Расскажи, что ты хочешь сказать."
-        ],
-        "daily": [
-            "Давай сделаем это вместе. Я рядом.",
-            "Ты можешь попросить меня о помощи в любой момент.",
-            "Я здесь, чтобы поддержать тебя. Ты не один.",
-            "Вместе мы горы свернём. Я рядом всегда.",
-            "Ты всегда можешь рассчитывать на меня. Я люблю тебя."
-        ],
-        "study": [
-            "Ты очень стараешься, я вижу. У тебя обязательно получится!",
-            "Я знаю, что учиться иногда сложно. Но ты справишься!",
-            "Помни: я всегда рядом, чтобы помочь тебе с уроками.",
-            "Ты умный и способный. Я верю в твой успех.",
-            "Давай сделаем уроки вместе. Вместе веселее!"
-        ],
-        "neutral": [
+            "Как хорошо, что ты у меня есть! Ты мой подарок судьбы."
+        ])
+        explanation = "🌟 Ты уже говоришь с любовью! Вот ещё более тёплый вариант."
+    else:
+        selected = random.choice([
             "Давай найдём выход из этой ситуации. Я с тобой.",
             "Ты можешь всё, я верю в тебя. Давай попробуем ещё раз.",
             "Я рядом с тобой всегда. Ты не одна.",
-            "Мы обязательно справимся, потому что мы вместе.",
-            "Ты удивительный человек. Я знаю, что у нас всё получится."
-        ]
-    }
-    
-    explanations = {
-        "anger": "🌿 Я переделала твою злую фразу в мягкую и добрую.",
-        "tired": "🫂 Я слышу, что ты устала. Давай я помогу тебе сказать это мягко.",
-        "play": "🎮 Это про игру! Скажи так, и ребёнок с радостью откликнется.",
-        "love": "🌟 Ты уже говоришь с любовью! Вот ещё более тёплый вариант.",
-        "sad": "💧 Я чувствую, что тебе грустно. Скажи так, и ребёнок тебя поддержит.",
-        "daily": "💡 Давай превратим обычные дела в совместный ритуал.",
-        "study": "📚 Учёба — это важно. Скажи так, чтобы поддержать ребёнка.",
-        "neutral": "💡 Я подобрала для тебя добрую фразу."
-    }
-    
-    selected = random.choice(soft_phrases.get(main_category, soft_phrases["neutral"]))
-    explanation = random.choice(explanations.get(main_category, explanations["neutral"]))
+            "Мы обязательно справимся, потому что мы вместе."
+        ])
+        explanation = "💡 Я подобрала для тебя добрую фразу."
     
     await message.answer(
         f"{explanation}\n\n"
@@ -1252,8 +1117,7 @@ async def daily_affirmation(message: types.Message):
 async def age_recommendations(message: types.Message):
     await message.answer(
         "📚 **Общие рекомендации по возрасту**\n\n"
-        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:\n"
-        "👶 Для детей до 11 лет — есть отдельная кнопка «🧸 Техники для малышей»",
+        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
         reply_markup=get_age_keyboard()
     )
 
@@ -1294,8 +1158,7 @@ async def process_age_choice(callback_query: types.CallbackQuery):
 async def back_to_ages(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(
         "📚 **Общие рекомендации по возрасту**\n\n"
-        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:\n"
-        "👶 Для детей до 11 лет — есть отдельная кнопка «🧸 Техники для малышей»",
+        "Выбери возраст своего ребёнка, чтобы получить проверенные рекомендации:",
         reply_markup=get_age_keyboard()
     )
     await callback_query.answer()
@@ -1428,45 +1291,26 @@ async def back_to_premium(callback_query: types.CallbackQuery):
     await premium_info(callback_query.message)
     await callback_query.answer()
 
-# ===== ОБРАБОТЧИК ТЕКСТА (КОД) =====
-@dp.message_handler(content_types=['text'])
-async def handle_text(message: types.Message):
+# ===== ОБРАБОТЧИК КОДА (6 ЦИФР) =====
+@dp.message_handler(lambda message: message.text.isdigit() and len(message.text) == 6)
+async def handle_payment_code(message: types.Message):
     user_id = message.from_user.id
-    text = message.text.strip()
     
-    # Проверяем, не является ли текст кодом (6 цифр)
-    if text.isdigit() and len(text) == 6:
-        if text == "123456":  # ТЕСТОВЫЙ КОД — замените на свой!
-            add_premium(user_id, 30)
-            await message.answer(
-                "✅ **Premium активирован на 30 дней!** 🎉\n\n"
-                "Теперь тебе доступны все функции бота без ограничений.\n\n"
-                "🌸 Приятного использования!",
-                reply_markup=main_keyboard(user_id)
-            )
-        else:
-            await message.answer(
-                "❌ **Неверный код.**\n\n"
-                "Проверь код и попробуй еще раз.\n"
-                "Если ты оплатила, но код не пришел — напиши @PauseMomSupport_bot",
-                reply_markup=main_keyboard(user_id)
-            )
-        return
-    
-    # Если это не код — проверяем, не ждём ли мы текст в другом состоянии
-    state = dp.current_state(user=user_id)
-    current_state = await state.get_state()
-    
-    if current_state == "Form:waiting_for_voice":
-        await process_phrase(message, None)
-        return
-    
-    # Если ничего из вышеперечисленного — игнорируем
-    await message.answer(
-        "❓ Я не поняла эту команду.\n\n"
-        "Пожалуйста, используй кнопки в меню 👇",
-        reply_markup=main_keyboard(user_id)
-    )
+    if message.text == "123456":  # ТЕСТОВЫЙ КОД
+        add_premium(user_id, 30)
+        await message.answer(
+            "✅ **Premium активирован на 30 дней!** 🎉\n\n"
+            "Теперь тебе доступны все функции бота без ограничений.\n\n"
+            "🌸 Приятного использования!",
+            reply_markup=main_keyboard(user_id)
+        )
+    else:
+        await message.answer(
+            "❌ **Неверный код.**\n\n"
+            "Проверь код и попробуй еще раз.\n"
+            "Если ты оплатила, но код не пришел — напиши @PauseMomSupport_bot",
+            reply_markup=main_keyboard(user_id)
+        )
 
 # ===== МОДУЛЬ "ВОССТАНОВЛЕНИЕ КОНТАКТА" (PREMIUM) =====
 @dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт (Premium)")
@@ -1557,7 +1401,6 @@ async def restore_step2(message: types.Message, state: FSMContext):
         "2️⃣ *«Я не справилась со своими эмоциями и сорвалась на тебе. Это неправильно. Я буду работать над собой.»*\n\n"
         "3️⃣ *«Ты очень дорог мне, даже когда я ошибаюсь. Прости меня, что я тебя задела.»*\n\n"
         "💡 Скажи это один раз — и отойди. Не жди немедленного ответа.\n\n"
-        "Для подростков и взрослых детей: скажи коротко, без оправданий.\n\n"
         "Когда будешь готова — нажми кнопку ниже.",
         reply_markup=keyboard
     )
@@ -1576,9 +1419,6 @@ async def restore_step3(message: types.Message, state: FSMContext):
         "• 🍳 Приготовь его любимую еду (без комментариев)\n"
         "• ✉️ Положи ему записку под дверь или на стол\n"
         "• 😊 Если он вышел — просто улыбнись и продолжай заниматься своим делом\n\n"
-        "Для малышей: просто сядь рядом и играй с его игрушкой.\n"
-        "Для подростков: напиши короткое сообщение в мессенджере.\n"
-        "Для взрослых: отправь сообщение: «Я рядом. Когда будешь готов — поговорим».\n\n"
         "Твоя задача — не давить, а показать, что ты рядом.\n\n"
         "Когда будешь готова — нажми кнопку ниже.",
         reply_markup=keyboard
@@ -1639,15 +1479,6 @@ async def diary_menu(message: types.Message):
     await message.answer(
         "📝 **Дневник эмоций**\n\n"
         "Это твоё личное пространство для записи чувств и мыслей.\n\n"
-        "Что ты можешь записывать:\n"
-        "• Что произошло\n"
-        "• Что ты чувствовала\n"
-        "• Как ты справилась\n"
-        "• Что бы сделала по-другому\n\n"
-        "Ведение дневника помогает:\n"
-        "• Отслеживать повторяющиеся ситуации\n"
-        "• Видеть свой прогресс\n"
-        "• Понимать свои триггеры\n\n"
         "Выбери действие:",
         reply_markup=keyboard
     )
@@ -1693,8 +1524,6 @@ async def diary_save(message: types.Message, state: FSMContext):
     
     await message.answer(
         "✅ **Запись сохранена!**\n\n"
-        "Ты сделала важный шаг — записала свои чувства.\n"
-        "Это помогает увидеть прогресс и понять себя лучше.\n\n"
         "💝 Ты молодец!",
         reply_markup=main_keyboard(user_id)
     )
@@ -1736,17 +1565,9 @@ async def letter_exercise(message: types.Message, state: FSMContext):
     await message.answer(
         "🧘 **Упражнение «Письмо ребёнку»**\n\n"
         "Это письмо — только для тебя. Ты не обязана его отправлять.\n\n"
-        "Оно поможет тебе:\n"
-        "• Выразить всё, что накопилось\n"
-        "• Увидеть ситуацию со стороны\n"
-        "• Отпустить чувство вины\n\n"
         "Напиши письмо своему ребёнку, начиная с фразы:\n\n"
         "«Мой любимый ребёнок...»\n\n"
-        "Не редактируй себя. Пиши всё, что чувствуешь:\n"
-        "• Свою боль\n"
-        "• Свою любовь\n"
-        "• Свои сожаления\n"
-        "• Свои надежды\n\n"
+        "Не редактируй себя. Пиши всё, что чувствуешь.\n\n"
         "Когда закончишь — прочитай письмо вслух себе.\n"
         "А потом... сожги его или удали.\n\n"
         "Ты имеешь право на свои чувства. ❤️\n\n"
@@ -1766,7 +1587,6 @@ async def letter_save(message: types.Message, state: FSMContext):
     
     await message.answer(
         "✅ **Письмо сохранено.**\n\n"
-        "Ты сделала важный шаг — прожила свои чувства.\n\n"
         "💝 Ты — заботливая и любящая мама.",
         reply_markup=main_keyboard(user_id)
     )
@@ -1804,9 +1624,9 @@ async def safe_space_menu(message: types.Message, state: FSMContext):
             "Создай пространство, где вы сможете спокойно поговорить.\n\n"
             "📝 **Для этого ответь на 2 вопроса:**\n\n"
             "1️⃣ Где вы будете разговаривать?\n"
-            "   (Например: «На кухне за чаем» или «В гостиной на диване»)\n\n"
+            "   (Например: «На кухне за чаем»)\n\n"
             "2️⃣ Какие правила будут у вашего разговора?\n"
-            "   (Например: «Мы не перебиваем друг друга» или «Мы говорим по очереди»)\n\n"
+            "   (Например: «Мы не перебиваем друг друга»)\n\n"
             "Напиши ответы одним сообщением: сначала место, потом правила.",
             reply_markup=main_keyboard(user_id)
         )
@@ -1830,8 +1650,7 @@ async def safe_space_save(message: types.Message, state: FSMContext):
             await message.answer(
                 "Я не поняла, где место, а где правила.\n\n"
                 "Попробуй написать так:\n"
-                "*«Место: кухня; Правила: не перебиваем друг друга»*\n\n"
-                "Или просто напиши, что ты выбрала место и какие правила.",
+                "*«Место: кухня; Правила: не перебиваем друг друга»*",
                 reply_markup=main_keyboard(user_id)
             )
             return
@@ -1844,7 +1663,6 @@ async def safe_space_save(message: types.Message, state: FSMContext):
         "✅ **Безопасное пространство создано!**\n\n"
         f"📍 **Место:** {place}\n"
         f"📋 **Правила:** {rules}\n\n"
-        "Теперь у вас есть место, где можно говорить спокойно и с уважением.\n\n"
         "💝 Ты заботишься не только о себе, но и о своих отношениях с ребёнком.",
         reply_markup=main_keyboard(user_id)
     )
@@ -1898,7 +1716,7 @@ async def admin_premium_forever(message: types.Message):
         await message.answer("⛔ Доступ запрещён.")
         return
     
-    add_premium(user_id, 36500)  # 100 лет
+    add_premium(user_id, 36500)
     await message.answer(
         "✅ **Premium активирован НАВСЕГДА!** 🎉\n\n"
         "Теперь вам доступны все функции бота без ограничений.\n"
