@@ -33,14 +33,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
 )''')
 conn.commit()
 
-cursor.execute('''CREATE TABLE IF NOT EXISTS diary (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    text TEXT,
-    date DATE
-)''')
-conn.commit()
-
 cursor.execute('''CREATE TABLE IF NOT EXISTS letters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -68,7 +60,6 @@ class Form(StatesGroup):
     restore_step2 = State()
     restore_step3 = State()
     restore_step4 = State()
-    diary_waiting = State()
     letter_waiting = State()
     safe_space_place = State()
     safe_space_rules = State()
@@ -133,9 +124,14 @@ def main_keyboard(user_id):
     
     return keyboard
 
-# ===== КЛАВИАТУРА SOS =====
+# ===== КЛАВИАТУРА SOS (КНОПКА НАЗАД СВЕРХУ) =====
 def sos_keyboard():
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    
+    # Кнопка "Назад" в самом верху
+    keyboard.add(
+        KeyboardButton("🔙 Главное меню")
+    )
     keyboard.add(
         KeyboardButton("🌬️ Дыхание 4-7-8"),
         KeyboardButton("🧘 Осознанное дыхание")
@@ -156,9 +152,7 @@ def sos_keyboard():
         KeyboardButton("🌊 Волна дыхания"),
         KeyboardButton("💭 Наблюдатель")
     )
-    keyboard.add(
-        KeyboardButton("🔙 Главное меню")
-    )
+    
     return keyboard
 
 # ===== ДИСКЛЕЙМЕР =====
@@ -1056,7 +1050,6 @@ async def back_to_ages(callback_query: types.CallbackQuery):
 async def premium_info(message: types.Message):
     user_id = message.from_user.id
     
-    # Проверяем, админ ли это
     ADMINS = [1076773869]
     
     if user_id in ADMINS:
@@ -1066,7 +1059,6 @@ async def premium_info(message: types.Message):
             "✨ **Доступно:**\n"
             "✅ Техники для малышей (1-10 лет)\n"
             "✅ Модуль «Восстановление контакта»\n"
-            "✅ Дневник эмоций\n"
             "✅ Письмо ребёнку\n"
             "✅ Безопасное пространство",
             reply_markup=main_keyboard(user_id)
@@ -1099,7 +1091,6 @@ async def premium_info(message: types.Message):
         "✨ **Что ты получаешь:**\n"
         "✅ Техники для малышей (1-10 лет)\n"
         "✅ Модуль «Восстановление контакта»\n"
-        "✅ Дневник эмоций\n"
         "✅ Письмо ребёнку\n"
         "✅ Безопасное пространство\n\n"
         "📲 **Как оплатить:**\n"
@@ -1255,13 +1246,18 @@ async def back_to_kids(callback_query: types.CallbackQuery):
     )
     await callback_query.answer()
 
-# ===== МОДУЛЬ "ВОССТАНОВЛЕНИЕ КОНТАКТА" (PREMIUM) =====
+# ===== МОДУЛЬ "ВОССТАНОВЛЕНИЕ КОНТАКТА" =====
 @dp.message_handler(lambda message: message.text == "🤝 Восстановить контакт")
 async def restore_contact(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     ADMINS = [1076773869]
     
-    if not (user_id in ADMINS or is_premium(user_id)):
+    # Админу доступ всегда открыт
+    if user_id in ADMINS:
+        await show_restore_menu(message, state)
+        return
+    
+    if not is_premium(user_id):
         keyboard = InlineKeyboardMarkup(row_width=1)
         keyboard.add(
             InlineKeyboardButton("💎 Оформить Premium", callback_data="back_to_premium")
@@ -1273,9 +1269,11 @@ async def restore_contact(message: types.Message, state: FSMContext):
         )
         return
     
+    await show_restore_menu(message, state)
+
+async def show_restore_menu(message: types.Message, state: FSMContext):
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     keyboard.add(KeyboardButton("🚀 Начать восстановление"))
-    keyboard.add(KeyboardButton("📝 Дневник эмоций"))
     keyboard.add(KeyboardButton("🧘 Письмо ребёнку"))
     keyboard.add(KeyboardButton("🫂 Безопасное пространство"))
     keyboard.add(KeyboardButton("🔙 Главное меню"))
@@ -1294,6 +1292,14 @@ async def restore_contact(message: types.Message, state: FSMContext):
 @dp.message_handler(lambda message: message.text == "🚀 Начать восстановление")
 async def start_restore(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
+    ADMINS = [1076773869]
+    
+    if user_id not in ADMINS and not is_premium(user_id):
+        await message.answer(
+            "🔒 Этот раздел доступен только Premium-пользователям.",
+            reply_markup=main_keyboard(user_id)
+        )
+        return
     
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     keyboard.add(KeyboardButton("✅ Прочитала, дай следующий шаг"))
@@ -1376,103 +1382,15 @@ async def save_reflection(message: types.Message, state: FSMContext):
         "📝 Напиши свои ответы одним сообщением.",
         reply_markup=main_keyboard(message.from_user.id)
     )
-    await state.set_state("diary_waiting")
-
-# ===== ДНЕВНИК ЭМОЦИЙ =====
-@dp.message_handler(lambda message: message.text == "📝 Дневник эмоций")
-async def diary_menu(message: types.Message):
-    user_id = message.from_user.id
-    
-    if not is_premium(user_id):
-        await message.answer(
-            "🔒 Этот раздел доступен только Premium-пользователям.",
-            reply_markup=main_keyboard(user_id)
-        )
-        return
-    
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-    keyboard.add(KeyboardButton("✏️ Записать сегодня"))
-    keyboard.add(KeyboardButton("📋 Мои записи"))
-    keyboard.add(KeyboardButton("🔙 Главное меню"))
-    
-    await message.answer(
-        "📝 **Дневник эмоций**\n\n"
-        "Выбери действие:",
-        reply_markup=keyboard
-    )
-
-@dp.message_handler(lambda message: message.text == "✏️ Записать сегодня")
-async def diary_write(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-    
-    today = datetime.now().strftime('%Y-%m-%d')
-    cursor.execute("SELECT text FROM diary WHERE user_id = ? AND date = ?", (user_id, today))
-    result = cursor.fetchone()
-    
-    if result:
-        await message.answer(
-            f"📝 **Ты уже записала сегодня:**\n\n"
-            f"«{result[0]}»\n\n"
-            "Хочешь добавить ещё одну запись?",
-            reply_markup=main_keyboard(user_id)
-        )
-    else:
-        await message.answer(
-            "📝 **Напиши, что произошло сегодня.**\n\n"
-            "1️⃣ Что произошло?\n"
-            "2️⃣ Что я почувствовала?\n"
-            "3️⃣ Что я сделала?\n"
-            "4️⃣ Что бы я сделала по-другому?\n\n"
-            "Или просто напиши, что чувствуешь. ✨",
-            reply_markup=main_keyboard(user_id)
-        )
-    
-    await state.set_state("diary_waiting")
-
-@dp.message_handler(state="diary_waiting", content_types=['text'])
-async def diary_save(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-    text = message.text
-    
-    today = datetime.now().strftime('%Y-%m-%d')
-    cursor.execute("INSERT INTO diary (user_id, text, date) VALUES (?, ?, ?)", 
-                   (user_id, text, today))
-    conn.commit()
-    
-    await message.answer(
-        "✅ **Запись сохранена!**\n\n"
-        "💝 Ты молодец!",
-        reply_markup=main_keyboard(user_id)
-    )
     await state.finish()
-
-@dp.message_handler(lambda message: message.text == "📋 Мои записи")
-async def diary_view(message: types.Message):
-    user_id = message.from_user.id
-    
-    cursor.execute("SELECT date, text FROM diary WHERE user_id = ? ORDER BY date DESC LIMIT 10", (user_id,))
-    results = cursor.fetchall()
-    
-    if not results:
-        await message.answer(
-            "📋 **У тебя пока нет записей.**\n\n"
-            "Начни вести дневник сегодня! 📝",
-            reply_markup=main_keyboard(user_id)
-        )
-        return
-    
-    diary_text = "📋 **Твои последние записи:**\n\n"
-    for date, text in results:
-        diary_text += f"📅 {date}:\n{text[:100]}{'...' if len(text) > 100 else ''}\n\n"
-    
-    await message.answer(diary_text, reply_markup=main_keyboard(user_id))
 
 # ===== ПИСЬМО РЕБЁНКУ =====
 @dp.message_handler(lambda message: message.text == "🧘 Письмо ребёнку")
 async def letter_exercise(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
+    ADMINS = [1076773869]
     
-    if not is_premium(user_id):
+    if user_id not in ADMINS and not is_premium(user_id):
         await message.answer(
             "🔒 Этот раздел доступен только Premium-пользователям.",
             reply_markup=main_keyboard(user_id)
@@ -1511,8 +1429,9 @@ async def letter_save(message: types.Message, state: FSMContext):
 @dp.message_handler(lambda message: message.text == "🫂 Безопасное пространство")
 async def safe_space_menu(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
+    ADMINS = [1076773869]
     
-    if not is_premium(user_id):
+    if user_id not in ADMINS and not is_premium(user_id):
         await message.answer(
             "🔒 Этот раздел доступен только Premium-пользователям.",
             reply_markup=main_keyboard(user_id)
