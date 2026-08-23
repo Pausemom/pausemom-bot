@@ -1,4 +1,3 @@
-import logging
 import asyncio
 import hashlib
 import os
@@ -11,7 +10,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton
 )
-from aiogram.filters import Command, CommandStart, StateFilter
+from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -28,9 +27,9 @@ ADMINS = [int(os.getenv('ADMIN_ID', 1076773869))]
 DB_PATH = "pause_bot.db"
 
 # TODO: Замените ссылки на реальные юридические документы
-POLICY_URL = "https://disk.yandex.ru/i/ModbOQOoLMBQvw"
-OFFER_URL = "https://disk.yandex.ru/i/tilUzcRo6I6ltg"
-CONSENT_URL = "https://disk.yandex.ru/i/UhxqVf-LYJBm4w"
+POLICY_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ПОЛИТИКА/edit"
+OFFER_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ОФЕРТА/edit"
+CONSENT_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_СОГЛАСИЕ/edit"
 
 # Инициализация
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
@@ -66,7 +65,7 @@ async def is_premium(user_id):
     if user_id in ADMINS:
         return True
     user = await get_user(user_id)
-    if user and user[4]:
+    if user and user[4]:  # subscription_end
         try:
             end_date = datetime.strptime(user[4], '%Y-%m-%d').date()
             if end_date >= date.today():
@@ -111,20 +110,25 @@ def main_keyboard(user_id):
             [KeyboardButton(text="📚 Общие рекомендации по возрасту"), KeyboardButton(text="📞 Помощь")],
             [KeyboardButton(text="🌅 Аффирмация дня")]
         ],
-        resize_keyboard=True, row_width=2
+        resize_keyboard=True,
+        row_width=2
     )
 
 def sos_keyboard():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🔙 Главное меню")],
-            [KeyboardButton(text="🌬️ Дыхание 4-7-8"), KeyboardButton(text="🧘 Осознанное дыхание")],
-            [KeyboardButton(text="👀 5-4-3-2-1"), KeyboardButton(text="🤗 Обнять себя")],
-            [KeyboardButton(text="💧 Умыться водой"), KeyboardButton(text="🦶 Стойка на ногах")],
-            [KeyboardButton(text="🧠 Сканирование тела"), KeyboardButton(text="☀️ Луч света")],
-            [KeyboardButton(text="🌊 Волна дыхания"), KeyboardButton(text="💭 Наблюдатель")]
-        ],
-        resize_keyboard=True, row_width=2
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌬️ Дыхание 4-7-8", callback_data="sos_breath"),
+             InlineKeyboardButton(text="🧘 Осознанное дыхание", callback_data="sos_mindful")],
+            [InlineKeyboardButton(text="👀 5-4-3-2-1", callback_data="sos_54321"),
+             InlineKeyboardButton(text="🤗 Обнять себя", callback_data="sos_hug")],
+            [InlineKeyboardButton(text="💧 Умыться водой", callback_data="sos_wash"),
+             InlineKeyboardButton(text="🦶 Стойка на ногах", callback_data="sos_standing")],
+            [InlineKeyboardButton(text="🧠 Сканирование тела", callback_data="sos_bodyscan"),
+             InlineKeyboardButton(text="☀️ Луч света", callback_data="sos_light")],
+            [InlineKeyboardButton(text="🌊 Волна дыхания", callback_data="sos_wave"),
+             InlineKeyboardButton(text="💭 Наблюдатель", callback_data="sos_observer")],
+            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main_from_sos")]
+        ]
     )
 
 # ================= СОСТОЯНИЯ =================
@@ -534,16 +538,17 @@ def get_support_message(category):
     return messages.get(category, messages["welcome"])
 
 def get_age_keyboard():
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👶 1-3 года", callback_data="age_1_3"),
-         InlineKeyboardButton(text="🧒 4-6 лет", callback_data="age_4_6")],
-        [InlineKeyboardButton(text="👦 7-10 лет", callback_data="age_7_10"),
-         InlineKeyboardButton(text="👧 11-14 лет", callback_data="age_11_14")],
-        [InlineKeyboardButton(text="🧑 15-18 лет", callback_data="age_15_18"),
-         InlineKeyboardButton(text="👩 18+ лет", callback_data="age_18_plus")],
-        [InlineKeyboardButton(text="📚 Общие рекомендации", callback_data="age_general")]
-    ])
-    return keyboard
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👶 1-3 года", callback_data="age_1_3"),
+             InlineKeyboardButton(text="🧒 4-6 лет", callback_data="age_4_6")],
+            [InlineKeyboardButton(text="👦 7-10 лет", callback_data="age_7_10"),
+             InlineKeyboardButton(text="👧 11-14 лет", callback_data="age_11_14")],
+            [InlineKeyboardButton(text="🧑 15-18 лет", callback_data="age_15_18"),
+             InlineKeyboardButton(text="👩 18+ лет", callback_data="age_18_plus")],
+            [InlineKeyboardButton(text="📚 Общие рекомендации", callback_data="age_general")]
+        ]
+    )
 
 def get_advice_by_age(age_group):
     advice = {
@@ -674,7 +679,7 @@ def get_advice_by_age(age_group):
     }
     return advice.get(age_group, advice["age_general"])
 
-# ================= КОМАНДА START =================
+# ================= ОБРАБОТЧИКИ =================
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     user_id = message.from_user.id
@@ -716,9 +721,11 @@ async def cmd_start(message: Message, state: FSMContext):
         )
         return
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🛡️ Здесь безопасно", callback_data="show_terms")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🛡️ Здесь безопасно", callback_data="show_terms")]
+        ]
+    )
 
     welcome_text = (
         f"👋 Привет, {first_name}!\n\n"
@@ -736,9 +743,11 @@ async def cmd_start(message: Message, state: FSMContext):
 # ================= ЮРИДИЧЕСКИЙ БЛОК =================
 @router.callback_query(F.data == "show_terms")
 async def show_terms(callback: CallbackQuery):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Принять и продолжить", callback_data="accept_terms")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Принять и продолжить", callback_data="accept_terms")]
+        ]
+    )
 
     text = (
         "📋 <b>Пару формальностей и начнём.</b>\n\n"
@@ -777,10 +786,10 @@ async def sos(message: Message):
         reply_markup=sos_keyboard()
     )
 
-# ================= ВСЕ 10 УПРАЖНЕНИЙ SOS =================
-@router.message(F.text == "🌬️ Дыхание 4-7-8")
-async def breathe(message: Message):
-    await message.answer(
+# ================= ОБРАБОТЧИКИ ИНЛАЙН-КНОПОК SOS =================
+@router.callback_query(F.data == "sos_breath")
+async def sos_breath_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "🌬️ <b>Дыхание 4-7-8</b>\n\n"
         "1️⃣ Вдохни носом — <b>4</b> секунды\n"
         "2️⃣ Задержи дыхание — <b>7</b> секунд\n"
@@ -789,10 +798,11 @@ async def breathe(message: Message):
         "✨ Это снижает уровень кортизола.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "🧘 Осознанное дыхание")
-async def mindful_breath(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_mindful")
+async def sos_mindful_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "🧘 <b>Осознанное дыхание</b>\n\n"
         "1️⃣ Сядь удобно, закрой глаза.\n"
         "2️⃣ Сделай 3 глубоких вдоха и выдоха.\n"
@@ -801,10 +811,11 @@ async def mindful_breath(message: Message):
         "✨ Это возвращает тебя в «здесь и сейчас».",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "👀 5-4-3-2-1")
-async def grounding(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_54321")
+async def sos_54321_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "👀 <b>Упражнение «5-4-3-2-1»</b>\n\n"
         "Оглянись вокруг и найди:\n"
         "5️⃣ <b>вещей</b>, которые ты видишь\n"
@@ -815,10 +826,11 @@ async def grounding(message: Message):
         "✨ Это возвращает мозг в реальность.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "🤗 Обнять себя")
-async def self_hug(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_hug")
+async def sos_hug_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "🤗 <b>Техника «Бабочка»</b>\n\n"
         "1️⃣ Скрести руки на груди\n"
         "2️⃣ Похлопай себя по плечам попеременно\n"
@@ -826,10 +838,11 @@ async def self_hug(message: Message):
         "✨ Это успокаивает нервную систему.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "💧 Умыться водой")
-async def wash(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_wash")
+async def sos_wash_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "🚰 <b>Умывание холодной водой</b>\n\n"
         "1️⃣ Встань и подойди к раковине\n"
         "2️⃣ Умой лицо холодной водой <b>3 раза</b>\n"
@@ -837,10 +850,11 @@ async def wash(message: Message):
         "✨ Это запускает «нырятельный рефлекс».",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "🦶 Стойка на ногах")
-async def standing(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_standing")
+async def sos_standing_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "🦶 <b>Стойка на ногах</b>\n\n"
         "1️⃣ Встань ровно, ноги на ширине плеч\n"
         "2️⃣ Почувствуй, как ноги касаются пола\n"
@@ -852,10 +866,11 @@ async def standing(message: Message):
         "✨ Это возвращает тебя в тело.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "🧠 Сканирование тела")
-async def body_scan(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_bodyscan")
+async def sos_bodyscan_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "🧠 <b>Сканирование тела</b>\n\n"
         "Закрой глаза и почувствуй:\n"
         "👣 <b>Стопы</b>\n"
@@ -866,10 +881,11 @@ async def body_scan(message: Message):
         "✨ Это снимает напряжение.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "☀️ Луч света")
-async def light_beam(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_light")
+async def sos_light_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "☀️ <b>Луч света</b>\n\n"
         "1️⃣ Закрой глаза.\n"
         "2️⃣ Представь <b>тёплый золотистый свет</b> над головой.\n"
@@ -881,10 +897,11 @@ async def light_beam(message: Message):
         "✨ Свет растворяет гнев.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "🌊 Волна дыхания")
-async def wave_breath(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_wave")
+async def sos_wave_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "🌊 <b>Волна дыхания</b>\n\n"
         "Представь, что твоё дыхание — это волны океана:\n\n"
         "🌊 <b>Вдох</b> — волна накатывает\n"
@@ -893,10 +910,11 @@ async def wave_breath(message: Message):
         "✨ Волны смывают гнев и тревогу.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
 
-@router.message(F.text == "💭 Наблюдатель")
-async def observer(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "sos_observer")
+async def sos_observer_callback(callback: CallbackQuery):
+    await callback.message.answer(
         "💭 <b>Наблюдатель</b>\n\n"
         "1️⃣ Закрой глаза.\n"
         "2️⃣ Представь, что ты смотришь на себя со стороны.\n"
@@ -909,6 +927,16 @@ async def observer(message: Message):
         "✨ Ты отделяешь себя от эмоций.",
         reply_markup=sos_keyboard()
     )
+    await callback.answer()
+
+@router.callback_query(F.data == "back_to_main_from_sos")
+async def back_to_main_from_sos_callback(callback: CallbackQuery):
+    await callback.message.delete()
+    await callback.message.answer(
+        "🌸 <b>Главное меню:</b>\n\nВыберите, что вам нужно:",
+        reply_markup=main_keyboard(callback.from_user.id)
+    )
+    await callback.answer()
 
 # ================= КНОПКА "ПРИГЛАСИТЬ ПОДРУГУ" =================
 @router.message(F.text == "👥 Пригласить подругу")
@@ -921,7 +949,7 @@ async def referral(message: Message):
         code = result[0]
     else:
         code = await generate_referral_code(user_id)
-    
+
     bot_info = await bot.get_me()
     bot_username = bot_info.username
 
@@ -938,13 +966,15 @@ async def restore_contact(message: Message, state: FSMContext):
     user_id = message.from_user.id
 
     if await is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Начать восстановление", callback_data="start_restore")],
-            [InlineKeyboardButton(text="🌸 Ресурсные техники для мамы", callback_data="resource_techniques")],
-            [InlineKeyboardButton(text="🧸 Техники для малышей", callback_data="kids_restore")],
-            [InlineKeyboardButton(text="🧑 Техники для подростков и детей постарше", callback_data="teen_restore")],
-            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main")]
-        ])
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Начать восстановление", callback_data="start_restore")],
+                [InlineKeyboardButton(text="🌸 Ресурсные техники для мамы", callback_data="resource_techniques")],
+                [InlineKeyboardButton(text="🧸 Техники для малышей", callback_data="kids_restore")],
+                [InlineKeyboardButton(text="🧑 Техники для подростков и детей постарше", callback_data="teen_restore")],
+                [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main")]
+            ]
+        )
         await message.answer(
             "🤝 <b>Восстановление контакта</b>\n\n"
             "Выбери категорию:\n\n"
@@ -956,9 +986,11 @@ async def restore_contact(message: Message, state: FSMContext):
         )
         return
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
+        ]
+    )
     await message.answer(
         "🔒 <b>Этот раздел доступен только по подписке Premium.</b>\n\n"
         "Оформите Premium (999 ₽/мес), чтобы получить доступ к эксклюзивному модулю «Восстановление контакта».",
@@ -975,7 +1007,8 @@ async def start_restore_callback(callback: CallbackQuery, state: FSMContext):
             [KeyboardButton(text="✅ Прочитала, дай следующий шаг")],
             [KeyboardButton(text="🔙 Главное меню")]
         ],
-        resize_keyboard=True, row_width=1
+        resize_keyboard=True,
+        row_width=1
     )
 
     await callback.message.answer(
@@ -1000,7 +1033,8 @@ async def restore_step2(message: Message, state: FSMContext):
             [KeyboardButton(text="✅ Прочитала, дай следующий шаг")],
             [KeyboardButton(text="🔙 Главное меню")]
         ],
-        resize_keyboard=True, row_width=1
+        resize_keyboard=True,
+        row_width=1
     )
 
     await message.answer(
@@ -1023,7 +1057,8 @@ async def restore_step3(message: Message, state: FSMContext):
             [KeyboardButton(text="✅ Прочитала, дай следующий шаг")],
             [KeyboardButton(text="🔙 Главное меню")]
         ],
-        resize_keyboard=True, row_width=1
+        resize_keyboard=True,
+        row_width=1
     )
 
     await message.answer(
@@ -1058,14 +1093,16 @@ async def restore_step4(message: Message, state: FSMContext):
 # ================= РЕСУРСНЫЕ ТЕХНИКИ ДЛЯ МАМЫ =================
 @router.callback_query(F.data == "resource_techniques")
 async def resource_techniques(callback: CallbackQuery):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🌬️ Квадратное дыхание", callback_data="res_breath")],
-        [InlineKeyboardButton(text="✍️ Список благодарности", callback_data="res_gratitude")],
-        [InlineKeyboardButton(text="🫂 Разрешение на отдых", callback_data="res_rest")],
-        [InlineKeyboardButton(text="🌅 Луч света", callback_data="res_light")],
-        [InlineKeyboardButton(text="🎵 Музыкальная пауза", callback_data="res_music")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌬️ Квадратное дыхание", callback_data="res_breath")],
+            [InlineKeyboardButton(text="✍️ Список благодарности", callback_data="res_gratitude")],
+            [InlineKeyboardButton(text="🫂 Разрешение на отдых", callback_data="res_rest")],
+            [InlineKeyboardButton(text="🌅 Луч света", callback_data="res_light")],
+            [InlineKeyboardButton(text="🎵 Музыкальная пауза", callback_data="res_music")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
+        ]
+    )
 
     await callback.message.edit_text(
         "🌸 <b>Ресурсные техники для мамы</b>\n\n"
@@ -1141,21 +1178,25 @@ async def show_resource_technique(callback: CallbackQuery):
     await callback.message.edit_text(
         f"{text}\n\n"
         f"🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="resource_techniques")]
-        ])
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="resource_techniques")]
+            ]
+        )
     )
 
 # ================= ТЕХНИКИ ДЛЯ МАЛЫШЕЙ (В ВОССТАНОВЛЕНИИ) =================
 @router.callback_query(F.data == "kids_restore")
 async def kids_restore_techniques(callback: CallbackQuery):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👶 1-3 года", callback_data="kids_restore_1_3"),
-         InlineKeyboardButton(text="🧒 4-6 лет", callback_data="kids_restore_4_6")],
-        [InlineKeyboardButton(text="👦 7-9 лет", callback_data="kids_restore_7_9"),
-         InlineKeyboardButton(text="👦 10-12 лет", callback_data="kids_restore_10_12")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👶 1-3 года", callback_data="kids_restore_1_3"),
+             InlineKeyboardButton(text="🧒 4-6 лет", callback_data="kids_restore_4_6")],
+            [InlineKeyboardButton(text="👦 7-9 лет", callback_data="kids_restore_7_9"),
+             InlineKeyboardButton(text="👦 10-12 лет", callback_data="kids_restore_10_12")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
+        ]
+    )
 
     await callback.message.edit_text(
         "🧸 <b>Техники для малышей</b>\n\nВыбери возраст ребёнка:",
@@ -1172,23 +1213,27 @@ async def show_kids_restore_technique(callback: CallbackQuery):
     await callback.message.edit_text(
         f"{techniques_data['title']}\n\n{tips_text}\n\n"
         f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="kids_restore")]
-        ])
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="kids_restore")]
+            ]
+        )
     )
 
 # ================= ТЕХНИКИ ДЛЯ ПОДРОСТКОВ =================
 @router.callback_query(F.data == "teen_restore")
 async def teen_restore_techniques(callback: CallbackQuery):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👁️ Наблюдатель", callback_data="teen_observer")],
-        [InlineKeyboardButton(text="🎯 Стоп-кадр", callback_data="teen_stop_frame")],
-        [InlineKeyboardButton(text="🗣️ Честность без оправданий", callback_data="teen_honest")],
-        [InlineKeyboardButton(text="🎯 Совет по запросу", callback_data="teen_advice")],
-        [InlineKeyboardButton(text="📱 Музыка-мостик", callback_data="teen_music")],
-        [InlineKeyboardButton(text="🧩 Спроси, а не учи", callback_data="teen_ask")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👁️ Наблюдатель", callback_data="teen_observer")],
+            [InlineKeyboardButton(text="🎯 Стоп-кадр", callback_data="teen_stop_frame")],
+            [InlineKeyboardButton(text="🗣️ Честность без оправданий", callback_data="teen_honest")],
+            [InlineKeyboardButton(text="🎯 Совет по запросу", callback_data="teen_advice")],
+            [InlineKeyboardButton(text="📱 Музыка-мостик", callback_data="teen_music")],
+            [InlineKeyboardButton(text="🧩 Спроси, а не учи", callback_data="teen_ask")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_restore")]
+        ]
+    )
 
     await callback.message.edit_text(
         "🧑 <b>Техники для подростков и детей постарше</b>\n\n"
@@ -1272,33 +1317,36 @@ async def show_teen_technique(callback: CallbackQuery):
     await callback.message.edit_text(
         f"{text}\n\n"
         f"🔙 Нажми «Назад», чтобы вернуться к списку техник.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="teen_restore")]
-        ])
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="teen_restore")]
+            ]
+        )
     )
 
 # ================= КНОПКА "НУЖНЫЕ СЛОВА ДЛЯ МАМЫ" =================
 @router.message(F.text == "💝 Нужные слова для мамы")
 async def support_menu(message: Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👋 Первое знакомство", callback_data="support_welcome"),
-         InlineKeyboardButton(text="🌸 После SOS-паузы", callback_data="support_after_sos")],
-        [InlineKeyboardButton(text="🫂 После срыва", callback_data="support_after_cry"),
-         InlineKeyboardButton(text="🌙 Вечерняя поддержка", callback_data="support_evening")],
-        [InlineKeyboardButton(text="🌅 Утренняя поддержка", callback_data="support_morning"),
-         InlineKeyboardButton(text="👧 Для мам подростков", callback_data="support_teen")],
-        [InlineKeyboardButton(text="👩 Для мам взрослых детей", callback_data="support_adult"),
-         InlineKeyboardButton(text="🍼 Для мам в декрете", callback_data="support_baby")],
-        [InlineKeyboardButton(text="😴 Кто не выспался", callback_data="support_tired"),
-         InlineKeyboardButton(text="💔 Кто чувствует себя недостаточно хорошей", callback_data="support_not_enough")],
-        [InlineKeyboardButton(text="🫂 Кто устал от вины", callback_data="support_guilt"),
-         InlineKeyboardButton(text="🫂 Кто чувствует себя одинокой", callback_data="support_alone")],
-        [InlineKeyboardButton(text="💝 Забота о себе", callback_data="support_self_care")]
-    ])
-
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👋 Первое знакомство", callback_data="support_welcome"),
+             InlineKeyboardButton(text="🌸 После SOS-паузы", callback_data="support_after_sos")],
+            [InlineKeyboardButton(text="🫂 После срыва", callback_data="support_after_cry"),
+             InlineKeyboardButton(text="🌙 Вечерняя поддержка", callback_data="support_evening")],
+            [InlineKeyboardButton(text="🌅 Утренняя поддержка", callback_data="support_morning"),
+             InlineKeyboardButton(text="👧 Для мам подростков", callback_data="support_teen")],
+            [InlineKeyboardButton(text="👩 Для мам взрослых детей", callback_data="support_adult"),
+             InlineKeyboardButton(text="🍼 Для мам в декрете", callback_data="support_baby")],
+            [InlineKeyboardButton(text="😴 Кто не выспался", callback_data="support_tired"),
+             InlineKeyboardButton(text="💔 Кто чувствует себя недостаточно хорошей", callback_data="support_not_enough")],
+            [InlineKeyboardButton(text="🫂 Кто устал от вины", callback_data="support_guilt"),
+             InlineKeyboardButton(text="🫂 Кто чувствует себя одинокой", callback_data="support_alone")],
+            [InlineKeyboardButton(text="💫 Кто чувствует себя разбитой или потерянной", callback_data="support_lost"),
+             InlineKeyboardButton(text="💝 Забота о себе", callback_data="support_self_care")]
+        ]
+    )
     await message.answer(
-        "💝 <b>Нужные слова для мамы</b>\n\n"
-        "Выбери категорию, которая откликается тебе сейчас:",
+        "💝 <b>Нужные слова для мамы</b>\n\nВыбери категорию, которая откликается тебе сейчас:",
         reply_markup=keyboard
     )
 
@@ -1311,26 +1359,26 @@ async def show_support_message(callback: CallbackQuery):
     user_id = callback.from_user.id
 
     if await is_premium(user_id):
-        # Premium-пользователь видит текст по дню недели (все 7)
         day_index = datetime.now().weekday()
         chosen_text = texts[day_index % len(texts)]
     else:
-        # Бесплатный пользователь видит только первый (старый) текст
         chosen_text = texts[0]
 
     await callback.message.edit_text(
         f"💝 <b>{message_data['title']}</b>\n\n{chosen_text}\n\n"
         "🔙 Нажми «Назад», чтобы выбрать другую категорию.",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🔙 Назад к категориям", callback_data="back_to_support")
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад к категориям", callback_data="back_to_support")]
+            ]
         )
     )
     await callback.answer()
 
-
 @router.callback_query(F.data == "back_to_support")
 async def back_to_support(callback: CallbackQuery):
     await support_menu(callback.message)
+    await callback.answer()
 
 # ================= КНОПКА "ТЕХНИКИ ДЛЯ МАЛЫШЕЙ" (PREMIUM) =================
 @router.message(F.text == "🧸 Техники для малышей")
@@ -1338,22 +1386,26 @@ async def kids_techniques_menu(message: Message):
     user_id = message.from_user.id
 
     if await is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="👶 1-3 года", callback_data="kids_1_3"),
-             InlineKeyboardButton(text="🧒 4-6 лет", callback_data="kids_4_6")],
-            [InlineKeyboardButton(text="👦 7-9 лет", callback_data="kids_7_9"),
-             InlineKeyboardButton(text="👦 10-12 лет", callback_data="kids_10_12")],
-            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main")]
-        ])
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="👶 1-3 года", callback_data="kids_1_3"),
+                 InlineKeyboardButton(text="🧒 4-6 лет", callback_data="kids_4_6")],
+                [InlineKeyboardButton(text="👦 7-9 лет", callback_data="kids_7_9"),
+                 InlineKeyboardButton(text="👦 10-12 лет", callback_data="kids_10_12")],
+                [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main")]
+            ]
+        )
         await message.answer(
             "🧸 <b>Техники для малышей</b>\n\nВыбери возраст:",
             reply_markup=keyboard
         )
         return
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
+        ]
+    )
     await message.answer(
         "🔒 <b>Техники для малышей доступны только Premium-пользователям.</b>\n\n"
         "Оформите Premium (999 ₽/мес) и получите доступ к техникам для детей от 1 до 12 лет.",
@@ -1378,9 +1430,11 @@ async def process_kids_technique(callback: CallbackQuery):
     await callback.message.edit_text(
         f"{techniques_data['title']}\n\n{tips_text}\n\n"
         f"🔙 Нажми «Назад», чтобы выбрать другой возраст.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад к возрастам", callback_data="back_to_kids")]
-        ])
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад к возрастам", callback_data="back_to_kids")]
+            ]
+        )
     )
 
 @router.callback_query(F.data == "back_to_kids")
@@ -1393,9 +1447,11 @@ async def daily_affirmation(message: Message):
     user_id = message.from_user.id
 
     if not await is_premium(user_id):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
-        ])
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="💎 Оформить Premium", callback_data="back_to_premium")]
+            ]
+        )
         await message.answer(
             "🔒 <b>Аффирмации доступны только Premium-пользователям.</b>\n\n"
             "Оформите Premium (999 ₽/мес) и получайте 100 поддерживающих фраз.",
@@ -1470,9 +1526,11 @@ async def process_age_choice(callback: CallbackQuery):
 
     await callback.message.edit_text(
         message_text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад к возрастам", callback_data="back_to_ages")]
-        ])
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад к возрастам", callback_data="back_to_ages")]
+            ]
+        )
     )
 
 @router.callback_query(F.data == "back_to_ages")
@@ -1483,17 +1541,18 @@ async def back_to_ages(callback: CallbackQuery):
         reply_markup=get_age_keyboard()
     )
 
-# ================= НАЗАД =================
+# ================= НАЗАД К ВОССТАНОВЛЕНИЮ КОНТАКТА =================
 @router.callback_query(F.data == "back_to_restore")
 async def back_to_restore(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.delete()
-    # Создаем "фейковое" сообщение для вызова restore_contact
+
     class FakeMessage:
         def __init__(self, user_id):
             self.from_user = type('User', (), {'id': user_id})()
         async def answer(self, text, reply_markup=None):
             await callback.message.answer(text, reply_markup=reply_markup)
+
     fake_msg = FakeMessage(callback.from_user.id)
     await restore_contact(fake_msg, state)
 
@@ -1537,11 +1596,11 @@ async def premium_info(message: Message):
             )
         return
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❓ Как оплатить?", callback_data="payment_help")]
-        # TODO: Когда подключите оплату, раскомментируйте эту кнопку
-        # [InlineKeyboardButton(text="✅ Я оплатил(а)", callback_data="confirm_payment")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="❓ Как оплатить?", callback_data="payment_help")]
+        ]
+    )
 
     await message.answer(
         "💎 <b>Premium — 999 ₽/мес</b>\n\n"
@@ -1559,9 +1618,11 @@ async def premium_info(message: Message):
 
 @router.callback_query(F.data == "payment_help")
 async def payment_help(callback: CallbackQuery):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад к Premium", callback_data="back_to_premium")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад к Premium", callback_data="back_to_premium")]
+        ]
+    )
 
     await callback.message.edit_text(
         "❓ <b>Как оплатить Premium:</b>\n\n"
@@ -1577,28 +1638,24 @@ async def payment_help(callback: CallbackQuery):
 @router.callback_query(F.data == "back_to_premium")
 async def back_to_premium(callback: CallbackQuery):
     await callback.message.delete()
+
     class FakeMessage:
         def __init__(self, user_id):
             self.from_user = type('User', (), {'id': user_id})()
         async def answer(self, text, reply_markup=None):
             await callback.message.answer(text, reply_markup=reply_markup)
+
     fake_msg = FakeMessage(callback.from_user.id)
     await premium_info(fake_msg)
-
-# Кнопка "Я оплатил" временно отключена
-# @router.callback_query(F.data == "confirm_payment")
-# async def confirm_payment(callback: CallbackQuery):
-#     user_id = callback.from_user.id
-#     await add_premium(user_id, 30)
-#     await callback.message.edit_text("✅ <b>Premium активирован на 30 дней!</b> 🎉")
-#     await callback.message.answer("🌸 Приятного использования!", reply_markup=main_keyboard(user_id))
 
 # ================= ПОМОЩЬ =================
 @router.message(F.text == "📞 Помощь")
 async def help_menu(message: Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💬 Написать в поддержку", url="https://t.me/PauseMomSupport_bot")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 Написать в поддержку", url="https://t.me/PauseMomSupport_bot")]
+        ]
+    )
 
     await message.answer(
         "📞 <b>Помощь</b>\n\n"
@@ -1624,7 +1681,8 @@ async def admin_command(message: Message):
             [KeyboardButton(text="👑 Активировать Premium (навсегда)"), KeyboardButton(text="👑 Активировать Premium (1 месяц)")],
             [KeyboardButton(text="📊 Пользователи (статистика)"), KeyboardButton(text="🔙 Главное меню")]
         ],
-        resize_keyboard=True, row_width=2
+        resize_keyboard=True,
+        row_width=2
     )
     await message.answer(
         "👑 <b>Админ-панель</b>\n\nДобро пожаловать, создатель! 👋\n\nВыберите действие:",
@@ -1684,15 +1742,16 @@ async def admin_stats(message: Message):
         f"📈 Бот растёт! 🌸",
         reply_markup=main_keyboard(user_id)
     )
-# ================= ВОЗВРАТ В ГЛАВНОЕ МЕНЮ =================
+
+# ================= ВОЗВРАТ В ГЛАВНОЕ МЕНЮ (ОБЫЧНАЯ КНОПКА) =================
 @router.message(F.text == "🔙 Главное меню")
 async def back_to_menu(message: Message, state: FSMContext):
-    # Если пользователь был в процессе восстановления (в состоянии FSM) — сбрасываем это состояние
     await state.clear()
     await message.answer(
         "🌸 <b>Главное меню:</b>\n\nВыберите, что вам нужно:",
         reply_markup=main_keyboard(message.from_user.id)
     )
+
 # ================= ЗАПУСК =================
 async def on_startup():
     await create_tables()
