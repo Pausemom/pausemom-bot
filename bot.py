@@ -28,7 +28,7 @@ DB_PATH = "pause_bot.db"
 
 # TODO: Замените ссылки на реальные юридические документы
 POLICY_URL = "https://disk.yandex.ru/i/ModbOQOoLMBQvw"
-OFFER_URL = "https://disk.yandex.ru/i/tilUzcRo6I6ltg"
+OFFER_URL = "https://disk.yandex.ru/i/Euq939bSwdxUbg"
 CONSENT_URL = "https://disk.yandex.ru/i/UhxqVf-LYJBm4w"
 
 # Инициализация
