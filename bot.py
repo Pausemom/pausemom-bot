@@ -28,9 +28,9 @@ ADMINS = [int(os.getenv('ADMIN_ID', 1076773869))]
 DB_PATH = "pause_bot.db"
 
 # TODO: Замените ссылки на реальные юридические документы
-POLICY_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ПОЛИТИКА/edit"
-OFFER_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ОФЕРТА/edit"
-CONSENT_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_СОГЛАСИЕ/edit"
+POLICY_URL = "https://disk.yandex.ru/i/ModbOQOoLMBQvw"
+OFFER_URL = "https://disk.yandex.ru/i/tilUzcRo6I6ltg"
+CONSENT_URL = "https://disk.yandex.ru/i/UhxqVf-LYJBm4w"
 
 # Инициализация
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
