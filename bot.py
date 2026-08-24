@@ -1903,12 +1903,24 @@ async def back_to_menu(message: Message, state: FSMContext):
 # ================= ЗАПУСК =================
 async def on_startup():
     await create_tables()
+    # Добавляем поле order_counter, если его ещё нет
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("PRAGMA table_info(users)")
+        columns = [row[1] for row in await cursor.fetchall()]
+        if 'order_counter' not in columns:
+            await db.execute("ALTER TABLE users ADD COLUMN order_counter INTEGER DEFAULT 0")
+            await db.commit()
+            print("Поле order_counter добавлено")
     print("База данных готова!")
     print("Бот запущен!")
 
 async def main():
     dp.include_router(router)
     await on_startup()
+    await dp.start_polling(bot)
+
+if __name__ == '__main__':
+    asyncio.run(main())
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
