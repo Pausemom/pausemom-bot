@@ -116,17 +116,11 @@ async def set_agreed_to_terms(user_id):
 import hashlib
 import json
 import os
-from urllib.parse import urlencode, quote_plus
-import requests
+from urllib.parse import urlencode
 
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    """
-    Генерирует ссылку на оплату через Робокассу,
-    сохраняет InvoiceID и возвращает URL.
-    """
-    # 1. Получаем порядковый номер заказа
+    # 1. Получаем следующий порядковый номер заказа
     async with aiosqlite.connect(DB_PATH) as db:
-        # Увеличиваем счётчик заказов для пользователя
         await db.execute(
             "UPDATE users SET order_counter = order_counter + 1 WHERE user_id = ?",
             (user_id,)
@@ -139,12 +133,12 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         inv_id = row[0] if row else 1
         await db.commit()
 
-    # 2. Описание платежа (с номером заказа)
-    description = f"Доступ к Premium на 30 дней 999,00₽ х1 Оплата заказа №{inv_id}"
+    # 2. Описание
+    description = f"Доступ к Premium на 30 дней 999.00₽ х1 Оплата заказа №{inv_id}"
 
-    # 3. Данные для фискального чека (Receipt)
+    # 3. Receipt: JSON -> URL-кодирование
     receipt_data = {
-        "sno": "usn_income",   # система налогообложения (уточните свою)
+        "sno": "usn_income",
         "items": [
             {
                 "name": "Доступ к Premium на 30 дней",
@@ -152,36 +146,36 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
                 "sum": amount,
                 "payment_method": "full_payment",
                 "payment_object": "service",
-                "tax": "vat0"    # или "none", если НДС не облагается
+                "tax": "vat0"
             }
         ]
     }
     receipt_json = json.dumps(receipt_data, ensure_ascii=False)
-    # Кодируем Receipt для URL (важно: пробелы -> +)
-    receipt_encoded = quote_plus(receipt_json, safe='')
+    # Кодируем Receipt как параметр (пробелы -> +)
+    receipt_encoded = urlencode({'Receipt': receipt_json}).split('=')[1]
 
-    # 4. Строка для подписи (согласно документации Робокассы)
+    # 4. Строка подписи: MerchantLogin:OutSum:InvId:Receipt:Password1:Shp_user=value
     signature_string = (
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
         f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # 5. Собираем URL вручную, чтобы избежать двойного кодирования
-    payment_url = (
-        f"{ROBOKASSA_URL}?"
-        f"MerchantLogin={quote_plus(ROBOKASSA_LOGIN)}"
-        f"&OutSum={amount:.2f}"
-        f"&InvId={inv_id}"
-        f"&Description={quote_plus(description)}"
-        f"&Receipt={receipt_encoded}"
-        f"&SignatureValue={signature}"
-        f"&IsTest={'1' if ROBOKASSA_TEST_MODE else '0'}"
-        f"&Shp_user={user_id}"
-        f"&Culture=ru"
-    )
+    # 5. Собираем параметры и кодируем весь URL автоматически
+    params = {
+        'MerchantLogin': ROBOKASSA_LOGIN,
+        'OutSum': f"{amount:.2f}",
+        'InvId': inv_id,
+        'Description': description,
+        'Receipt': receipt_encoded,
+        'SignatureValue': signature,
+        'IsTest': '1' if ROBOKASSA_TEST_MODE else '0',
+        'Shp_user': str(user_id),
+        'Culture': 'ru'
+    }
+    payment_url = f"{ROBOKASSA_URL}?{urlencode(params)}"
 
-    # 6. Сохраняем номер заказа в базу для проверки
+    # 6. Сохраняем номер заказа в базу
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET last_invoice_id = ? WHERE user_id = ?",
