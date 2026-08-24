@@ -29,9 +29,9 @@ ADMINS = [int(os.getenv('ADMIN_ID', 0))]
 DB_PATH = "pause_bot.db"
 
 # Ссылки на юридические документы (замените на реальные)
-POLICY_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ПОЛИТИКА/edit"
-OFFER_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_ОФЕРТА/edit"
-CONSENT_URL = "https://docs.google.com/document/d/ВАША_ССЫЛКА_СОГЛАСИЕ/edit"
+POLICY_URL = "https://disk.yandex.ru/i/ModbOQOoLMBQvw"
+OFFER_URL = "https://disk.yandex.ru/i/Euq939bSwdxUbg"
+CONSENT_URL = "https://disk.yandex.ru/i/UhxqVf-LYJBm4w"
 
 # ================= РОБОКАССА =================
 ROBOKASSA_LOGIN = os.getenv('ROBOKASSA_LOGIN')
