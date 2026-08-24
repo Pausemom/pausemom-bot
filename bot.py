@@ -125,7 +125,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
             {
                 "name": "Доступ к Premium на 30 дней",
                 "quantity": 1,
-                "sum": 999
+                "sum": 999,
                 "payment_method": "full_payment",
                 "payment_object": "service",
                 "tax": "vat0"        # или "none", если без НДС
