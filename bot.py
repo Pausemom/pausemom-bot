@@ -134,7 +134,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         await db.commit()
 
     # 2. Описание
-    description = f"Доступ к Premium на 30 дней 999.00₽ х1 Оплата заказа №{inv_id}"
+    description = f"Доступ к Premium на 30 дней. Оплата заказа №{inv_id}"
 
     # 3. Receipt: JSON -> URL-кодирование
     receipt_data = {
