@@ -147,7 +147,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         'OutSum': f"{amount:.2f}",
         'InvId': inv_id,
         'Receipt': receipt_encoded,
-        'Description': 'Premium 30 days',
+        'Description': 'Доступ к Premium на 30 дней',
         'SignatureValue': signature,
         'IsTest': '1' if ROBOKASSA_TEST_MODE else '0',
         'Shp_user': str(user_id),
