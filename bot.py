@@ -1914,14 +1914,12 @@ async def on_startup():
     print("База данных готова!")
     print("Бот запущен!")
 
+
 async def main():
     dp.include_router(router)
     await on_startup()
     await dp.start_polling(bot)
 
-if __name__ == '__main__':
-    asyncio.run(main())
-    await dp.start_polling(bot)
 
-if __name__ == '__main__':
+if _name_ == '_main_':
     asyncio.run(main())
