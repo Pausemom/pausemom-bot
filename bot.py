@@ -119,59 +119,25 @@ import os
 from urllib.parse import urlencode, quote
 
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    # Получаем порядковый номер
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET order_counter = order_counter + 1 WHERE user_id = ?", (user_id,))
-        cursor = await db.execute("SELECT order_counter FROM users WHERE user_id = ?", (user_id,))
-        row = await cursor.fetchone()
-        inv_id = row[0] if row else 1
-        await db.commit()
-
-    invoice_id = str(inv_id)  # строковый идентификатор
-
-    description = f"Доступ к Premium на 30 дней 999.00₽ х1 Оплата заказа №{inv_id}"
-
-    receipt_data = {
-        "sno": "usn_income",
-        "items": [
-            {
-                "name": "Доступ к Premium на 30 дней",
-                "quantity": 1,
-                "sum": amount,
-                "payment_method": "full_payment",
-                "payment_object": "service",
-                "tax": "vat0"
-            }
-        ]
-    }
-    receipt_json = json.dumps(receipt_data, ensure_ascii=False)
-    receipt_encoded = quote(receipt_json, safe='')
-
-    signature_string = (
-        f"{ROBOKASSA_LOGIN}:{amount:.2f}:{invoice_id}:"
-        f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
-    )
+    inv_id = int(datetime.now().timestamp())
+    signature_string = f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:{ROBOKASSA_PASSWORD1}"
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    payment_url = (
-        f"{ROBOKASSA_URL}?"
-        f"MerchantLogin={quote(ROBOKASSA_LOGIN)}"
-        f"&OutSum={amount:.2f}"
-        f"&InvoiceID={quote(invoice_id)}"
-        f"&Description={quote(description)}"
-        f"&Receipt={receipt_encoded}"
-        f"&SignatureValue={signature}"
-        f"&IsTest={'1' if ROBOKASSA_TEST_MODE else '0'}"
-        f"&Shp_user={user_id}"
-        f"&Culture=ru"
-    )
+    description = "Premium 30 days"
+    params = {
+        'MerchantLogin': ROBOKASSA_LOGIN,
+        'OutSum': f"{amount:.2f}",
+        'InvId': inv_id,
+        'Description': description,
+        'SignatureValue': signature,
+        'IsTest': '1' if ROBOKASSA_TEST_MODE else '0',
+    }
+    payment_url = f"{ROBOKASSA_URL}?{urlencode(params)}"
 
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET last_invoice_id = ? WHERE user_id = ?", (invoice_id, user_id))
+        await db.execute("UPDATE users SET last_invoice_id = ? WHERE user_id = ?", (str(inv_id), user_id))
         await db.commit()
-
     return payment_url
-
 
 def check_payment(inv_id: str) -> bool:
     if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
