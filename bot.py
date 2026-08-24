@@ -113,21 +113,41 @@ async def set_agreed_to_terms(user_id):
         await db.commit()
 
 # ================= ФУНКЦИИ РОБОКАССЫ =================
+import json  # добавьте в начало файла, если ещё нет
+
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    """
-    Генерирует ссылку на оплату и сохраняет InvoiceID в базу.
-    """
     inv_id = int(datetime.now().timestamp())
 
-    signature = hashlib.md5(
-        f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}".encode()
-    ).hexdigest()
+    # Формируем Receipt
+    receipt_data = {
+        "sno": "usn_income",
+        "items": [
+            {
+                "name": "Доступ к Premium на 30 дней",
+                "quantity": 1,
+                "sum": 999
+                "payment_method": "full_payment",
+                "payment_object": "service",
+                "tax": "vat0"        # или "none", если без НДС
+            }
+        ]
+    }
+    receipt_json = json.dumps(receipt_data, ensure_ascii=False)
+    receipt_encoded = urlencode({'Receipt': receipt_json})
+
+    # Строка подписи: MerchantLogin:OutSum:InvId:Receipt:Password1:Shp_user=value
+    signature_string = (
+        f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
+        f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
+    )
+    signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
     params = {
         'MerchantLogin': ROBOKASSA_LOGIN,
         'OutSum': f"{amount:.2f}",
-        'InvoiceID': inv_id,
-        'Description': 'Premium подписка на 30 дней',
+        'InvId': inv_id,
+        'Receipt': receipt_encoded,
+        'Description': 'Premium 30 days',
         'SignatureValue': signature,
         'IsTest': '1' if ROBOKASSA_TEST_MODE else '0',
         'Shp_user': str(user_id),
@@ -137,7 +157,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
     payment_url = f"{ROBOKASSA_URL}?{urlencode(params)}"
 
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET last_invoice_id = ? WHERE user_id = ?", (inv_id, user_id))
+        await db.execute("UPDATE users SET last_invoice_id = ? WHERE user_id = ?", (str(inv_id), user_id))
         await db.commit()
 
     return payment_url
