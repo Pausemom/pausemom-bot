@@ -119,7 +119,7 @@ import os
 from urllib.parse import urlencode, quote
 
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    # 1. Порядковый номер заказа
+    # Получаем порядковый номер
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE users SET order_counter = order_counter + 1 WHERE user_id = ?", (user_id,))
         cursor = await db.execute("SELECT order_counter FROM users WHERE user_id = ?", (user_id,))
@@ -127,10 +127,10 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         inv_id = row[0] if row else 1
         await db.commit()
 
-    # 2. Описание
+    invoice_id = str(inv_id)  # строковый идентификатор
+
     description = f"Доступ к Premium на 30 дней 999.00₽ х1 Оплата заказа №{inv_id}"
 
-    # 3. Receipt (JSON -> строка -> кодирование)
     receipt_data = {
         "sno": "usn_income",
         "items": [
@@ -145,21 +145,19 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         ]
     }
     receipt_json = json.dumps(receipt_data, ensure_ascii=False)
-    receipt_encoded = quote(receipt_json, safe='') # <-- важно: только один раз
+    receipt_encoded = quote(receipt_json, safe='')
 
-    # 4. Строка подписи (согласно документации)
     signature_string = (
-        f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
+        f"{ROBOKASSA_LOGIN}:{amount:.2f}:{invoice_id}:"
         f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # 5. Сборка URL вручную (чтобы избежать двойного кодирования)
     payment_url = (
         f"{ROBOKASSA_URL}?"
         f"MerchantLogin={quote(ROBOKASSA_LOGIN)}"
         f"&OutSum={amount:.2f}"
-        f"&InvId={inv_id}"
+        f"&InvoiceID={quote(invoice_id)}"
         f"&Description={quote(description)}"
         f"&Receipt={receipt_encoded}"
         f"&SignatureValue={signature}"
@@ -168,23 +166,19 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         f"&Culture=ru"
     )
 
-    # 6. Сохраняем номер заказа
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET last_invoice_id = ? WHERE user_id = ?", (str(inv_id), user_id))
+        await db.execute("UPDATE users SET last_invoice_id = ? WHERE user_id = ?", (invoice_id, user_id))
         await db.commit()
 
     return payment_url
 
+
 def check_payment(inv_id: str) -> bool:
-    """
-    Проверяет статус платежа по InvoiceID через API Робокассы.
-    Возвращает True, если оплата прошла успешно (StateCode=100).
-    """
     if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
         return False
 
     signature = hashlib.md5(
-        f"{ROBOKASSA_LOGIN}:{inv_id}:{ROBOKASSA_PASSWORD2}".encode()
+        f"{ROBOKASSA_LOGIN}:{inv_id}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
     ).hexdigest()
 
     params = {
