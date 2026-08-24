@@ -831,7 +831,7 @@ async def cmd_start(message: Message, state: FSMContext):
         "Бот не является медицинским или психотерапевтическим инструментом, "
         "не ставит диагнозы и не назначает лечение, "
         "не заменяет профессиональную помощь психолога или врача.\n\n"
-        "📱 Поддержка: @PauseMomSupport_bot\n\n"
+    
         "Нажми «Здесь безопасно», чтобы продолжить ✨"
     )
     await message.answer(welcome_text, reply_markup=keyboard)
