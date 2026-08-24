@@ -827,7 +827,7 @@ async def cmd_start(message: Message, state: FSMContext):
     await generate_referral_code(user_id)
 
     # Проверяем согласие
-    if await has_agreed_to_terms(user_id):
+    if await has_agreed_to_terms(user_id) and user_id not in ADMINS:
         await message.answer(
             "🌸 <b>Главное меню:</b>\n\nВыберите, что вам нужно:",
             reply_markup=main_keyboard(user_id)
