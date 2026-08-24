@@ -117,7 +117,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
     """
     Генерирует ссылку на оплату и сохраняет InvoiceID в базу.
     """
-    inv_id = f"pm_{user_id}_{int(datetime.now().timestamp())}"
+    inv_id = int(datetime.now().timestamp())
 
     signature = hashlib.md5(
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}".encode()
