@@ -193,16 +193,33 @@ def check_payment(inv_id: str) -> bool:
     if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
         return False
 
-    # Подпись для запроса статуса: Login:InvoiceID:Password2 (в cp1251)
-    signature = hashlib.md5(
-        f"{ROBOKASSA_LOGIN}:{inv_id}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
-    ).hexdigest()
+    # Преобразуем сохранённый InvoiceID (строку) в число, если он числовой
+    try:
+        inv_id_int = int(inv_id)
+    except ValueError:
+        # Если вдруг хранится строка вида "pm_..." – используем как InvoiceID
+        inv_id_int = None
 
-    params = {
-        'MerchantLogin': ROBOKASSA_LOGIN,
-        'InvoiceID': inv_id,
-        'Signature': signature
-    }
+    if inv_id_int is not None:
+        # Подпись для числового InvId: Login:InvId:Password2
+        signature = hashlib.md5(
+            f"{ROBOKASSA_LOGIN}:{inv_id_int}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
+        ).hexdigest()
+        params = {
+            'MerchantLogin': ROBOKASSA_LOGIN,
+            'InvId': inv_id_int,
+            'Signature': signature
+        }
+    else:
+        # Если идентификатор строковый, используем InvoiceID
+        signature = hashlib.md5(
+            f"{ROBOKASSA_LOGIN}:{inv_id}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
+        ).hexdigest()
+        params = {
+            'MerchantLogin': ROBOKASSA_LOGIN,
+            'InvoiceID': inv_id,
+            'Signature': signature
+        }
 
     try:
         response = requests.get(ROBOKASSA_API_URL, params=params, timeout=10)
