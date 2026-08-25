@@ -112,6 +112,7 @@ from urllib.parse import quote_plus
 from datetime import datetime
 import aiosqlite  # если используется асинхронная работа с БД
 
+# Параметры магазина (должны быть заданы в переменных окружения)
 ROBOKASSA_LOGIN = os.getenv('ROBOKASSA_LOGIN')
 ROBOKASSA_PASSWORD1 = os.getenv('ROBOKASSA_PASSWORD1')
 ROBOKASSA_PASSWORD2 = os.getenv('ROBOKASSA_PASSWORD2')
@@ -122,14 +123,17 @@ ROBOKASSA_API_URL = 'https://auth.robokassa.ru/Merchant/WebService/Service.asmx/
 
 
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    """Генерирует платёжную ссылку Робокассы и сохраняет InvId в БД."""
+    """
+    Генерирует корректную платёжную ссылку Робокассы с учётом всех требований.
+    Сохраняет идентификатор заказа (InvId) в базе данных.
+    """
     # 1. Числовой идентификатор заказа
     inv_id = int(datetime.now().timestamp())
 
     # 2. Описание заказа (не участвует в подписи)
     description = f"Оплата заказа №{inv_id}"
 
-    # 3. Данные для чека (Receipt)
+    # 3. Данные для чека (Receipt) — JSON без лишних пробелов
     receipt_data = {
         "sno": "usn_income",   # укажите свою систему налогообложения
         "items": [
@@ -143,37 +147,40 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
             }
         ]
     }
-    # Убираем лишние пробелы из JSON
     receipt_json = json.dumps(receipt_data, ensure_ascii=False, separators=(',', ':'))
 
-    # 4. Кодируем Receipt как application/x-www-form-urlencoded (пробелы -> '+')
-    receipt_encoded = quote_plus(receipt_json)
+    # 4. Первое URL-кодирование Receipt (применяется в подписи)
+    receipt_encoded_once = quote_plus(receipt_json)
 
-    # 5. Кодируем пользовательский параметр Shp_user
-    shp_user_encoded = quote_plus(str(user_id))
+    # 5. Второе URL-кодирование Receipt (передаётся в URL) — требование Робокассы
+    receipt_encoded_twice = quote_plus(receipt_encoded_once)
 
-    # 6. Формируем строку для подписи (Login:OutSum:InvId:Receipt:Password1:Shp_user=value)
+    # 6. Пользовательский параметр Shp_user (для URL кодируем, для подписи — исходный)
+    shp_user_value = str(user_id)
+    shp_user_encoded = quote_plus(shp_user_value)
+
+    # 7. Строка подписи (используем первично закодированный Receipt и исходный Shp_user)
     signature_string = (
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
-        f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={shp_user_encoded}"
+        f"{receipt_encoded_once}:{ROBOKASSA_PASSWORD1}:Shp_user={shp_user_value}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # 7. Собираем URL с правильным кодированием параметров
+    # 8. Формируем URL с правильным кодированием каждого параметра
     payment_url = (
         f"{ROBOKASSA_URL}?"
         f"MerchantLogin={quote_plus(ROBOKASSA_LOGIN)}"
         f"&OutSum={amount:.2f}"
         f"&InvId={inv_id}"
         f"&Description={quote_plus(description)}"
-        f"&Receipt={receipt_encoded}"
+        f"&Receipt={receipt_encoded_twice}"   # дважды закодированный Receipt
         f"&SignatureValue={signature}"
         f"&IsTest={'1' if ROBOKASSA_TEST_MODE else '0'}"
         f"&Shp_user={shp_user_encoded}"
         f"&Culture=ru"
     )
 
-    # 8. Сохраняем InvId в базу данных (пример с aiosqlite)
+    # 9. Сохраняем InvId в базе данных (пример с aiosqlite)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET last_invoice_id = ? WHERE user_id = ?",
@@ -185,7 +192,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
 
 
 def check_payment(inv_id: str) -> bool:
-    """Проверяет статус платежа через API Робокассы (не требует исправлений)."""
+    """Проверяет статус платежа через API Робокассы (без изменений)."""
     if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
         return False
 
