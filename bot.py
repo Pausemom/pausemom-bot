@@ -144,7 +144,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
     receipt_json = json.dumps(receipt_data, ensure_ascii=False)
 
     # 4. Кодируем Receipt для URL (пробелы -> +)
-    receipt_encoded = quote_plus(receipt_json, safe='')
+    receipt_encoded = urlencode({'Receipt': receipt_json}).split('=')[1]
 
     # 5. Строка подписи: MerchantLogin:OutSum:InvId:Receipt:Password1:Shp_user=value
     signature_string = (
