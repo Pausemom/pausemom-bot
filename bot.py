@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import os
 from datetime import datetime, timedelta, date
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote_plus
 
 import requests
 import aiosqlite
