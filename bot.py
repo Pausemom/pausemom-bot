@@ -191,8 +191,9 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
     return payment_url
 
 
+import xml.etree.ElementTree as ET
+
 def check_payment(inv_id: str) -> bool:
-    """Проверяет статус платежа через API Робокассы (без изменений)."""
     if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
         return False
 
@@ -223,8 +224,18 @@ def check_payment(inv_id: str) -> bool:
     try:
         response = requests.get(ROBOKASSA_API_URL, params=params, timeout=10)
         if response.status_code == 200:
-            if 'StateCode="100"' in response.text:
+            # Разбираем XML
+            root = ET.fromstring(response.text)
+            # Ищем StateCode или Code
+            state_code = root.findtext('StateCode')
+            if state_code is None:
+                state_code = root.findtext('Code')
+            if state_code and state_code.strip() == '100':
                 return True
+            else:
+                print(f"StateCode от Робокассы: {state_code}")
+        else:
+            print(f"Ошибка HTTP: {response.status_code}")
     except Exception as e:
         print(f"Ошибка проверки платежа: {e}")
     return False
