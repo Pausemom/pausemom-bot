@@ -104,15 +104,21 @@ async def set_agreed_to_terms(user_id):
         await db.commit()
 
 # ================= ФУНКЦИИ РОБОКАССЫ =================
+import asyncio
 import hashlib
 import json
 import os
-import requests
-from urllib.parse import quote_plus
+import aiohttp
+import aiosqlite
 from datetime import datetime
-import aiosqlite  # если используется асинхронная работа с БД
+from urllib.parse import quote_plus, parse_qs
+from aiohttp import web
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-# Параметры магазина (должны быть заданы в переменных окружения)
+# ---------- Конфигурация ----------
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 ROBOKASSA_LOGIN = os.getenv('ROBOKASSA_LOGIN')
 ROBOKASSA_PASSWORD1 = os.getenv('ROBOKASSA_PASSWORD1')
 ROBOKASSA_PASSWORD2 = os.getenv('ROBOKASSA_PASSWORD2')
@@ -120,83 +126,113 @@ ROBOKASSA_TEST_MODE = os.getenv('ROBOKASSA_TEST_MODE', 'False').lower() == 'true
 
 ROBOKASSA_URL = 'https://auth.robokassa.ru/Merchant/Index.aspx'
 ROBOKASSA_API_URL = 'https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpState'
+RESULT_URL = 'https://yourdomain.com/robokassa/result'  # ваш публичный адрес
 
+DB_PATH = 'bot.db'
 
+# ---------- Инициализация ----------
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+app = web.Application()
+
+# ---------- Вспомогательные функции ----------
+def robokassa_sign(params: dict, password: str) -> str:
+    """Вычисляет подпись для набора параметров (алфавитный порядок, Shp_ отдельно)."""
+    items = []
+    for key in sorted(params.keys()):
+        if key == 'SignatureValue':
+            continue
+        if key.startswith('Shp_'):
+            items.append(f"{key}={params[key]}")
+        else:
+            items.append(str(params[key]))
+    sign_string = ':'.join(items) + ':' + password
+    return hashlib.md5(sign_string.encode('cp1251')).hexdigest()
+
+async def save_invoice(inv_id: str, user_id: int, amount: float) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO invoices (inv_id, user_id, amount, status, created_at) "
+            "VALUES (?, ?, ?, 'pending', ?)",
+            (inv_id, user_id, amount, datetime.now().isoformat())
+        )
+        await db.commit()
+
+async def update_invoice_status(inv_id: str, status: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE invoices SET status = ? WHERE inv_id = ?",
+            (status, inv_id)
+        )
+        await db.commit()
+
+async def get_invoice_amount(inv_id: str) -> float | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT amount FROM invoices WHERE inv_id = ?", (inv_id,))
+        row = await cursor.fetchone()
+        return row[0] if row else None
+
+async def activate_premium(user_id: int) -> None:
+    # Здесь должна быть ваша функция add_premium (например, обновление таблицы users)
+    # Пример:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET is_premium = 1, subscription_end = date('now', '+30 days') WHERE user_id = ?",
+            (user_id,)
+        )
+        await db.commit()
+
+# ---------- Генерация платёжной ссылки с Receipt ----------
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    """
-    Генерирует корректную платёжную ссылку Робокассы с учётом всех требований.
-    Сохраняет идентификатор заказа (InvId) в базе данных.
-    """
-    # 1. Числовой идентификатор заказа
-    inv_id = int(datetime.now().timestamp())
+    inv_id = str(int(datetime.now().timestamp()))
+    description = f"Оплата Premium на 30 дней"
 
-    # 2. Описание заказа (не участвует в подписи)
-    description = f"Оплата заказа №{inv_id}"
-
-    # 3. Данные для чека (Receipt) — JSON без лишних пробелов
+    # Данные чека (Receipt)
     receipt_data = {
-        "sno": "usn_income",   # укажите свою систему налогообложения
+        "sno": "usn_income",
         "items": [
             {
-                "name": "Доступ к Premium на 30 дней",
+                "name": "Premium подписка на 30 дней",
                 "quantity": 1,
                 "sum": amount,
                 "payment_method": "full_payment",
                 "payment_object": "service",
-                "tax": "vat0"   # или "none", если НДС не облагается
+                "tax": "vat0"
             }
         ]
     }
     receipt_json = json.dumps(receipt_data, ensure_ascii=False, separators=(',', ':'))
+    receipt_encoded_once = quote_plus(receipt_json)       # для подписи
+    receipt_encoded_twice = quote_plus(receipt_encoded_once)  # для URL
 
-    # 4. Первое URL-кодирование Receipt (применяется в подписи)
-    receipt_encoded_once = quote_plus(receipt_json)
-
-    # 5. Второе URL-кодирование Receipt (передаётся в URL) — требование Робокассы
-    receipt_encoded_twice = quote_plus(receipt_encoded_once)
-
-    # 6. Пользовательский параметр Shp_user (для URL кодируем, для подписи — исходный)
-    shp_user_value = str(user_id)
-    shp_user_encoded = quote_plus(shp_user_value)
-
-    # 7. Строка подписи (используем первично закодированный Receipt и исходный Shp_user)
+    # Подпись: Login:OutSum:InvId:Receipt:Password1:Shp_user=value
     signature_string = (
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
-        f"{receipt_encoded_once}:{ROBOKASSA_PASSWORD1}:Shp_user={shp_user_value}"
+        f"{receipt_encoded_once}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # 8. Формируем URL с правильным кодированием каждого параметра
-    payment_url = (
-        f"{ROBOKASSA_URL}?"
-        f"MerchantLogin={quote_plus(ROBOKASSA_LOGIN)}"
-        f"&OutSum={amount:.2f}"
-        f"&InvId={inv_id}"
-        f"&Description={quote_plus(description)}"
-        f"&Receipt={receipt_encoded_twice}"   # дважды закодированный Receipt
-        f"&SignatureValue={signature}"
-        f"&IsTest={'1' if ROBOKASSA_TEST_MODE else '0'}"
-        f"&Shp_user={shp_user_encoded}"
-        f"&Culture=ru"
-    )
+    params = {
+        'MerchantLogin': ROBOKASSA_LOGIN,
+        'OutSum': f"{amount:.2f}",
+        'InvId': inv_id,
+        'Description': description,
+        'Receipt': receipt_encoded_twice,
+        'SignatureValue': signature,
+        'IsTest': '1' if ROBOKASSA_TEST_MODE else '0',
+        'Shp_user': str(user_id),
+        'Culture': 'ru',
+    }
+    payment_url = f"{ROBOKASSA_URL}?{urlencode(params)}"
 
-    # 9. Сохраняем InvId в базе данных (пример с aiosqlite)
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET last_invoice_id = ? WHERE user_id = ?",
-            (str(inv_id), user_id)
-        )
-        await db.commit()
+    # Сохраняем счёт в БД
+    await save_invoice(inv_id, user_id, amount)
 
     return payment_url
 
-
-import xml.etree.ElementTree as ET
-
-def check_payment(inv_id: str) -> bool:
-    if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
-        return False
-
+# ---------- Асинхронная проверка статуса платежа ----------
+async def check_payment_async(inv_id: str) -> bool:
+    """Асинхронно проверяет статус платежа через API Робокассы."""
     try:
         inv_id_int = int(inv_id)
     except ValueError:
@@ -221,25 +257,153 @@ def check_payment(inv_id: str) -> bool:
             'Signature': signature
         }
 
-    try:
-        response = requests.get(ROBOKASSA_API_URL, params=params, timeout=10)
-        if response.status_code == 200:
-            # Разбираем XML
-            root = ET.fromstring(response.text)
-            # Ищем StateCode или Code
-            state_code = root.findtext('StateCode')
-            if state_code is None:
-                state_code = root.findtext('Code')
-            if state_code and state_code.strip() == '100':
-                return True
-            else:
-                print(f"StateCode от Робокассы: {state_code}")
-        else:
-            print(f"Ошибка HTTP: {response.status_code}")
-    except Exception as e:
-        print(f"Ошибка проверки платежа: {e}")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(ROBOKASSA_API_URL, params=params, timeout=10) as resp:
+            if resp.status == 200:
+                text = await resp.text()
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(text)
+                state_code = root.findtext('StateCode')
+                if state_code is None:
+                    state_code = root.findtext('Code')
+                return state_code and state_code.strip() == '100'
     return False
 
+async def poll_payment(user_id: int, chat_id: int, inv_id: str):
+    """Фоновая проверка платежа каждые 10 секунд (резервный метод)."""
+    for _ in range(30):  # 5 минут
+        if await check_payment_async(inv_id):
+            await activate_premium(user_id)
+            await bot.send_message(chat_id, "✅ Оплата получена! Premium активирован на 30 дней!")
+            return
+        await asyncio.sleep(10)
+    await bot.send_message(
+        chat_id,
+        "⏰ Платёж пока не подтверждён. Если вы оплатили, проверьте статус позже или обратитесь в поддержку."
+    )
+
+# ---------- Обработчик вебхука ResultURL ----------
+async def robokassa_result(request: web.Request):
+    data = await request.post()
+
+    out_sum = data.get('OutSum')
+    inv_id = data.get('InvId')
+    signature = data.get('SignatureValue')
+
+    if not out_sum or not inv_id or not signature:
+        return web.Response(text='BAD', status=400)
+
+    # Собираем Shp_ параметры
+    shp_params = {k: v for k, v in data.items() if k.startswith('Shp_')}
+    params_for_sign = {
+        'OutSum': out_sum,
+        'InvId': inv_id,
+        **shp_params
+    }
+    expected_sign = robokassa_sign(params_for_sign, ROBOKASSA_PASSWORD2)
+
+    if signature.lower() != expected_sign.lower():
+        return web.Response(text='BAD', status=400)
+
+    # Сверяем сумму
+    expected_amount = await get_invoice_amount(inv_id)
+    if expected_amount is None or float(out_sum) != expected_amount:
+        return web.Response(text='BAD', status=400)
+
+    # Обновляем статус и активируем Premium
+    await update_invoice_status(inv_id, 'paid')
+    user_id = int(shp_params.get('Shp_user', 0))
+    if user_id:
+        await activate_premium(user_id)
+        try:
+            await bot.send_message(user_id, "✅ Оплата подтверждена! Premium активирован.")
+        except:
+            pass
+
+    return web.Response(text='OK')
+
+# ---------- Telegram handlers ----------
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    await message.answer("Привет! Нажмите /premium для оформления подписки.")
+
+@dp.message(F.text == "💎 Premium")
+async def premium_info(message: Message):
+    user_id = message.from_user.id
+    # Здесь проверка наличия Premium и вывод информации (можно оставить как в исходном коде)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Оплатить", callback_data="pay_premium")],
+            [InlineKeyboardButton(text="❓ Как оплатить?", callback_data="payment_help")]
+        ]
+    )
+    await message.answer(
+        "💎 Premium — 999 ₽/мес. Нажмите «Оплатить».",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(F.data == "pay_premium")
+async def pay_premium(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    payment_url = await generate_payment_link_and_save(user_id)
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Перейти к оплате", url=payment_url)]
+        ]
+    )
+    await callback.message.edit_text(
+        "Нажмите кнопку ниже для оплаты. После оплаты Premium активируется автоматически.",
+        reply_markup=keyboard
+    )
+    await callback.answer()
+
+    # Запускаем фоновую проверку (резерв)
+    inv_id = str(int(datetime.now().timestamp()))  # нужно получить inv_id из generate_payment_link_and_save
+    # Лучше модифицировать generate_payment_link_and_save, чтобы она возвращала и inv_id
+    # Для простоты можно внутри функции сохранять inv_id и потом получить из БД
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("SELECT inv_id FROM invoices WHERE user_id = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1", (user_id,))
+        row = await cursor.fetchone()
+        if row:
+            inv_id = row[0]
+            asyncio.create_task(poll_payment(user_id, callback.message.chat.id, inv_id))
+
+# ---------- Запуск ----------
+async def init_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS invoices (
+                inv_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                amount REAL,
+                status TEXT,
+                created_at TEXT
+            )
+        ''')
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                is_premium INTEGER DEFAULT 0,
+                subscription_end TEXT
+            )
+        ''')
+        await db.commit()
+
+async def main():
+    await init_db()
+
+    # Вебхук сервер
+    app.router.add_post('/robokassa/result', robokassa_result)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    await site.start()
+
+    await dp.start_polling(bot)
+
+if __name__ == '__main__':
+    asyncio.run(main())
 # ================= КЛАВИАТУРЫ =================
 def main_keyboard(user_id):
     return ReplyKeyboardMarkup(
@@ -1747,7 +1911,6 @@ async def premium_info(message: Message):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="💳 Оплатить", callback_data="pay_premium")],
-            [InlineKeyboardButton(text="✅ Я оплатил(а)", callback_data="check_premium_payment")],
             [InlineKeyboardButton(text="❓ Как оплатить?", callback_data="payment_help")]
         ]
     )
@@ -1771,7 +1934,7 @@ async def pay_premium(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="💳 Перейти к оплате", url=payment_url)],
-            [InlineKeyboardButton(text="✅ Я оплатил(а)", callback_data="check_premium_payment")]
+            
         ]
     )
 
