@@ -37,7 +37,7 @@ CONSENT_URL = "https://disk.yandex.ru/i/UhxqVf-LYJBm4w"
 ROBOKASSA_LOGIN = os.getenv('ROBOKASSA_LOGIN')
 ROBOKASSA_PASSWORD1 = os.getenv('ROBOKASSA_PASSWORD1')
 ROBOKASSA_PASSWORD2 = os.getenv('ROBOKASSA_PASSWORD2')
-ROBOKASSA_TEST_MODE = os.getenv('ROBOKASSA_TEST_MODE', 'False').lower() == 'false'
+ROBOKASSA_TEST_MODE = os.getenv('ROBOKASSA_TEST_MODE', 'True').lower() == 'true'
 
 ROBOKASSA_URL = 'https://auth.robokassa.ru/Merchant/Index.aspx'
 ROBOKASSA_API_URL = 'https://auth.robokassa.ru/Merchant/WebService/Service.asmx/PaymentState'
