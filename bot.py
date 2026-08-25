@@ -33,15 +33,6 @@ POLICY_URL = "https://disk.yandex.ru/i/ModbOQOoLMBQvw"
 OFFER_URL = "https://disk.yandex.ru/i/Euq939bSwdxUbg"
 CONSENT_URL = "https://disk.yandex.ru/i/UhxqVf-LYJBm4w"
 
-# ================= РОБОКАССА =================
-ROBOKASSA_LOGIN = os.getenv('ROBOKASSA_LOGIN')
-ROBOKASSA_PASSWORD1 = os.getenv('ROBOKASSA_PASSWORD1')
-ROBOKASSA_PASSWORD2 = os.getenv('ROBOKASSA_PASSWORD2')
-ROBOKASSA_TEST_MODE = os.getenv('ROBOKASSA_TEST_MODE', 'False').lower() == 'false'
-
-ROBOKASSA_URL = 'https://auth.robokassa.ru/Merchant/Index.aspx'
-ROBOKASSA_API_URL = 'https://auth.robokassa.ru/Merchant/WebService/Service.asmx/PaymentState'
-
 # Инициализация
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
 router = Router()
@@ -116,20 +107,30 @@ async def set_agreed_to_terms(user_id):
 import hashlib
 import json
 import os
+import requests
 from urllib.parse import urlencode, quote_plus
 from datetime import datetime
-import aiosqlite
 
+# ================= НАСТРОЙКИ РОБОКАССЫ =================
+ROBOKASSA_LOGIN = os.getenv('ROBOKASSA_LOGIN')
+ROBOKASSA_PASSWORD1 = os.getenv('ROBOKASSA_PASSWORD1')
+ROBOKASSA_PASSWORD2 = os.getenv('ROBOKASSA_PASSWORD2')
+ROBOKASSA_TEST_MODE = os.getenv('ROBOKASSA_TEST_MODE', 'False').lower() == 'true'   # исправлено!
+
+ROBOKASSA_URL = 'https://auth.robokassa.ru/Merchant/Index.aspx'
+ROBOKASSA_API_URL = 'https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpState'  # рекомендуется OpState
+
+# ================= ФУНКЦИЯ ГЕНЕРАЦИИ ССЫЛКИ =================
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    # 1. Числовой InvId
+    # 1. Числовой InvId (можно и строковый InvoiceID, но оставляем числовой)
     inv_id = int(datetime.now().timestamp())
 
-    # 2. Описание на кириллице
+    # 2. Описание на кириллице (только номер заказа)
     description = f"Оплата заказа №{inv_id}"
 
-    # 3. Данные для чека (Receipt) с кириллическим названием
+    # 3. Данные для фискального чека (Receipt)
     receipt_data = {
-        "sno": "usn_income",   # ваша система налогообложения
+        "sno": "usn_income",   # система налогообложения (уточните свою)
         "items": [
             {
                 "name": "Доступ к Premium на 30 дней",
@@ -137,26 +138,28 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
                 "sum": amount,
                 "payment_method": "full_payment",
                 "payment_object": "service",
-                "tax": "vat0"    # или "none", если НДС не облагается
+                "tax": "vat0"      # или "none", если НДС не облагается
             }
         ]
     }
     receipt_json = json.dumps(receipt_data, ensure_ascii=False)
-    # Кодируем Receipt (пробелы -> +)
+
+    # 4. Кодируем Receipt для URL (пробелы -> +)
     receipt_encoded = quote_plus(receipt_json, safe='')
 
-    # 4. Кодируем значение Shp_user (на случай, если будет кириллица)
+    # 5. Кодируем значение Shp_user (хотя это число, но по документации)
     shp_user_value = str(user_id)
     shp_user_encoded = urlencode({'Shp_user': shp_user_value}).split('=')[1]
 
-    # 5. Подпись: Login:OutSum:InvId:Receipt:Password1:Shp_user=value
+    # 6. Строка подписи: Login:OutSum:InvId:Receipt:Password1:Shp_user=value
+    #    Shp-параметры в алфавитном порядке (у нас один)
     signature_string = (
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
         f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={shp_user_encoded}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # 6. Собираем URL вручную
+    # 7. Собираем URL вручную, чтобы избежать двойного кодирования
     payment_url = (
         f"{ROBOKASSA_URL}?"
         f"MerchantLogin={quote_plus(ROBOKASSA_LOGIN)}"
@@ -170,7 +173,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         f"&Culture=ru"
     )
 
-    # 7. Сохраняем InvId в базу
+    # 8. Сохраняем InvId в базу (как строку)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET last_invoice_id = ? WHERE user_id = ?",
@@ -180,6 +183,7 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
 
     return payment_url
 
+# ================= ФУНКЦИЯ ПРОВЕРКИ СТАТУСА ПЛАТЕЖА =================
 def check_payment(inv_id: str) -> bool:
     if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
         return False
@@ -201,7 +205,7 @@ def check_payment(inv_id: str) -> bool:
             'Signature': signature
         }
     else:
-        # Если вдруг строковый – используем InvoiceID
+        # Для строкового InvoiceID
         signature = hashlib.md5(
             f"{ROBOKASSA_LOGIN}:{inv_id}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
         ).hexdigest()
