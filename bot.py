@@ -119,24 +119,13 @@ import os
 from urllib.parse import urlencode
 
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    # 1. Получаем следующий порядковый номер заказа
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET order_counter = order_counter + 1 WHERE user_id = ?",
-            (user_id,)
-        )
-        cursor = await db.execute(
-            "SELECT order_counter FROM users WHERE user_id = ?",
-            (user_id,)
-        )
-        row = await cursor.fetchone()
-        inv_id = row[0] if row else 1
-        await db.commit()
+    # Генерируем строковый InvoiceID
+    inv_id = f"pm_{user_id}_{int(datetime.now().timestamp())}"
 
-    # 2. Описание
+    # Описание
     description = f"Оплата заказа №{inv_id}"
 
-    # 3. Receipt: JSON -> URL-кодирование
+    # Данные для чека (Receipt)
     receipt_data = {
         "sno": "usn_income",
         "items": [
@@ -151,23 +140,21 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         ]
     }
     receipt_json = json.dumps(receipt_data, ensure_ascii=False)
-    # Кодируем Receipt как параметр (пробелы -> +)
-    receipt_encoded = urlencode({'Receipt': receipt_json}).split('=')[1]
 
-    # 4. Строка подписи: MerchantLogin:OutSum:InvId:Receipt:Password1:Shp_user=value
+    # Строка подписи: MerchantLogin:OutSum:InvoiceID:Receipt:Password1:Shp_user=value
     signature_string = (
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
-        f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
+        f"{receipt_json}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # 5. Собираем параметры и кодируем весь URL автоматически
+    # Собираем параметры и кодируем всё через urlencode
     params = {
         'MerchantLogin': ROBOKASSA_LOGIN,
         'OutSum': f"{amount:.2f}",
-        'InvId': inv_id,
+        'InvoiceID': inv_id,
         'Description': description,
-        'Receipt': receipt_encoded,
+        'Receipt': receipt_json,
         'SignatureValue': signature,
         'IsTest': '1' if ROBOKASSA_TEST_MODE else '0',
         'Shp_user': str(user_id),
@@ -175,51 +162,30 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
     }
     payment_url = f"{ROBOKASSA_URL}?{urlencode(params)}"
 
-    # 6. Сохраняем номер заказа в базу
+    # Сохраняем InvoiceID в базу
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET last_invoice_id = ? WHERE user_id = ?",
-            (str(inv_id), user_id)
+            (inv_id, user_id)
         )
         await db.commit()
 
     return payment_url
 
 def check_payment(inv_id: str) -> bool:
-    """
-    Проверяет статус платежа через API Робокассы.
-    Возвращает True, если оплата прошла успешно (StateCode=100).
-    """
     if not ROBOKASSA_LOGIN or not ROBOKASSA_PASSWORD2:
         return False
 
-    # Преобразуем сохранённый InvoiceID (строку) в число, если он числовой
-    try:
-        inv_id_int = int(inv_id)
-    except ValueError:
-        # Если вдруг хранится строка вида "pm_..." – используем как InvoiceID
-        inv_id_int = None
+    # Подпись: Login:InvoiceID:Password2
+    signature = hashlib.md5(
+        f"{ROBOKASSA_LOGIN}:{inv_id}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
+    ).hexdigest()
 
-    if inv_id_int is not None:
-        # Подпись для числового InvId: Login:InvId:Password2
-        signature = hashlib.md5(
-            f"{ROBOKASSA_LOGIN}:{inv_id_int}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
-        ).hexdigest()
-        params = {
-            'MerchantLogin': ROBOKASSA_LOGIN,
-            'InvId': inv_id_int,
-            'Signature': signature
-        }
-    else:
-        # Если идентификатор строковый, используем InvoiceID
-        signature = hashlib.md5(
-            f"{ROBOKASSA_LOGIN}:{inv_id}:{ROBOKASSA_PASSWORD2}".encode('cp1251')
-        ).hexdigest()
-        params = {
-            'MerchantLogin': ROBOKASSA_LOGIN,
-            'InvoiceID': inv_id,
-            'Signature': signature
-        }
+    params = {
+        'MerchantLogin': ROBOKASSA_LOGIN,
+        'InvoiceID': inv_id,
+        'Signature': signature
+    }
 
     try:
         response = requests.get(ROBOKASSA_API_URL, params=params, timeout=10)
