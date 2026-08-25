@@ -116,21 +116,23 @@ async def set_agreed_to_terms(user_id):
 import hashlib
 import json
 import os
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote_plus
+from datetime import datetime
+import aiosqlite
 
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    # 1. Генерируем строковый InvoiceID (или можно числовой, но лучше строковый)
-    inv_id = f"pm_{user_id}_{int(datetime.now().timestamp())}"
+    # 1. Числовой идентификатор заказа (InvId), как в проверенной версии
+    inv_id = int(datetime.now().timestamp())
 
-    # 2. Описание
-    description = f"Оплата заказа №{inv_id}"
+    # 2. Описание (только латиница, чтобы избежать проблем с кодировкой)
+    description = "Premium 30 дней"
 
-    # 3. Данные для чека (Receipt)
+    # 3. Данные для чека (Receipt). В name временно латиница, потом можно кириллицу
     receipt_data = {
-        "sno": "usn_income",   # замените на вашу систему налогообложения
+        "sno": "usn_income",   # ваша система налогообложения
         "items": [
             {
-                "name": "Доступ к Premium на 30 дней",
+                "name": "Доступ к Premium 30 дней",
                 "quantity": 1,
                 "sum": amount,
                 "payment_method": "full_payment",
@@ -141,23 +143,22 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
     }
     receipt_json = json.dumps(receipt_data, ensure_ascii=False)
 
-    # 4. Кодируем Receipt для URL (однократное кодирование, пробелы -> +)
+    # 4. Кодируем Receipt для URL (пробелы -> +)
     receipt_encoded = quote_plus(receipt_json, safe='')
 
-    # 5. Строка подписи: MerchantLogin:OutSum:InvoiceID:Receipt:Password1:Shp_user=value
-    #    ВАЖНО: используется уже закодированный Receipt
+    # 5. Строка подписи: MerchantLogin:OutSum:InvId:Receipt:Password1:Shp_user=value
     signature_string = (
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
         f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # 6. Собираем URL вручную, чтобы избежать двойного кодирования
+    # 6. Собираем URL вручную (чтобы избежать двойного кодирования)
     payment_url = (
         f"{ROBOKASSA_URL}?"
         f"MerchantLogin={quote_plus(ROBOKASSA_LOGIN)}"
         f"&OutSum={amount:.2f}"
-        f"&InvoiceID={quote_plus(inv_id)}"
+        f"&InvId={inv_id}"
         f"&Description={quote_plus(description)}"
         f"&Receipt={receipt_encoded}"
         f"&SignatureValue={signature}"
@@ -166,11 +167,11 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
         f"&Culture=ru"
     )
 
-    # 7. Сохраняем InvoiceID в базу
+    # 7. Сохраняем InvId (как строку) в базу
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET last_invoice_id = ? WHERE user_id = ?",
-            (inv_id, user_id)
+            (str(inv_id), user_id)
         )
         await db.commit()
 
