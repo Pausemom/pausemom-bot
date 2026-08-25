@@ -119,15 +119,15 @@ import os
 from urllib.parse import urlencode
 
 async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> str:
-    # Генерируем строковый InvoiceID
+    # 1. Генерируем строковый InvoiceID (или можно числовой, но лучше строковый)
     inv_id = f"pm_{user_id}_{int(datetime.now().timestamp())}"
 
-    # Описание
+    # 2. Описание
     description = f"Оплата заказа №{inv_id}"
 
-    # Данные для чека (Receipt)
+    # 3. Данные для чека (Receipt)
     receipt_data = {
-        "sno": "usn_income",
+        "sno": "usn_income",   # замените на вашу систему налогообложения
         "items": [
             {
                 "name": "Доступ к Premium на 30 дней",
@@ -135,34 +135,38 @@ async def generate_payment_link_and_save(user_id: int, amount: float = 999) -> s
                 "sum": amount,
                 "payment_method": "full_payment",
                 "payment_object": "service",
-                "tax": "vat0"
+                "tax": "vat0"    # или "none", если НДС не облагается
             }
         ]
     }
     receipt_json = json.dumps(receipt_data, ensure_ascii=False)
 
-    # Строка подписи: MerchantLogin:OutSum:InvoiceID:Receipt:Password1:Shp_user=value
+    # 4. Кодируем Receipt для URL (однократное кодирование, пробелы -> +)
+    receipt_encoded = quote_plus(receipt_json, safe='')
+
+    # 5. Строка подписи: MerchantLogin:OutSum:InvoiceID:Receipt:Password1:Shp_user=value
+    #    ВАЖНО: используется уже закодированный Receipt
     signature_string = (
         f"{ROBOKASSA_LOGIN}:{amount:.2f}:{inv_id}:"
-        f"{receipt_json}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
+        f"{receipt_encoded}:{ROBOKASSA_PASSWORD1}:Shp_user={user_id}"
     )
     signature = hashlib.md5(signature_string.encode('cp1251')).hexdigest()
 
-    # Собираем параметры и кодируем всё через urlencode
-    params = {
-        'MerchantLogin': ROBOKASSA_LOGIN,
-        'OutSum': f"{amount:.2f}",
-        'InvoiceID': inv_id,
-        'Description': description,
-        'Receipt': receipt_json,
-        'SignatureValue': signature,
-        'IsTest': '1' if ROBOKASSA_TEST_MODE else '0',
-        'Shp_user': str(user_id),
-        'Culture': 'ru'
-    }
-    payment_url = f"{ROBOKASSA_URL}?{urlencode(params)}"
+    # 6. Собираем URL вручную, чтобы избежать двойного кодирования
+    payment_url = (
+        f"{ROBOKASSA_URL}?"
+        f"MerchantLogin={quote_plus(ROBOKASSA_LOGIN)}"
+        f"&OutSum={amount:.2f}"
+        f"&InvoiceID={quote_plus(inv_id)}"
+        f"&Description={quote_plus(description)}"
+        f"&Receipt={receipt_encoded}"
+        f"&SignatureValue={signature}"
+        f"&IsTest={'1' if ROBOKASSA_TEST_MODE else '0'}"
+        f"&Shp_user={user_id}"
+        f"&Culture=ru"
+    )
 
-    # Сохраняем InvoiceID в базу
+    # 7. Сохраняем InvoiceID в базу
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET last_invoice_id = ? WHERE user_id = ?",
