@@ -1690,19 +1690,19 @@ async def premium_info(message: Message):
     user_id = message.from_user.id
 
     if user_id in ADMINS:
-    await message.answer(
-        "👑 <b>Вы — создатель бота!</b>\n\n"
-        "Вам доступны все функции Premium без оплаты.\n\n"
-        "✨ <b>Доступно:</b>\n"
-        "✅ Техники для малышей (1-12 лет)\n"
-        "✅ Модуль «Восстановление контакта»\n"
-        "✅ 100 аффирмаций поддержки\n"
-        "✅ Поддерживающие фразы на каждый день недели (7 фраз в каждой категории)",
-        reply_markup=main_keyboard(user_id)
-    )
-    if not await is_premium(user_id):
-        await add_premium(user_id, 36500)
-    return
+        await message.answer(
+            "👑 <b>Вы — создатель бота!</b>\n\n"
+            "Вам доступны все функции Premium без оплаты.\n\n"
+            "✨ <b>Доступно:</b>\n"
+            "✅ Техники для малышей (1-12 лет)\n"
+            "✅ Модуль «Восстановление контакта»\n"
+            "✅ 100 аффирмаций поддержки\n"
+            "✅ Поддерживающие фразы на каждый день недели (7 фраз в каждой категории)",
+            reply_markup=main_keyboard(user_id)
+        )
+        if not await is_premium(user_id):
+            await add_premium(user_id, 36500)
+        return
 
     if await is_premium(user_id):
         async with aiosqlite.connect(DB_PATH) as db:
@@ -1726,15 +1726,15 @@ async def premium_info(message: Message):
     )
 
     await message.answer(
-    "💎 <b>Premium — 999 ₽/мес</b>\n\n"
-    "✨ <b>Что ты получаешь:</b>\n"
-    "✅ Техники для малышей (1-12 лет)\n"
-    "✅ Модуль «Восстановление контакта»\n"
-    "✅ 100 аффирмаций поддержки\n"
-    "✅ Поддерживающие фразы на каждый день недели (7 фраз в каждой категории)\n\n"
-    "💳 Нажмите «Оплатить», чтобы перейти к оплате через Робокассу.",
-    reply_markup=keyboard
-)
+        "💎 <b>Premium — 999 ₽/мес</b>\n\n"
+        "✨ <b>Что ты получаешь:</b>\n"
+        "✅ Техники для малышей (1-12 лет)\n"
+        "✅ Модуль «Восстановление контакта»\n"
+        "✅ 100 аффирмаций поддержки\n"
+        "✅ Поддерживающие фразы на каждый день недели (7 фраз в каждой категории)\n\n"
+        "💳 Нажмите «Оплатить», чтобы перейти к оплате через Робокассу.",
+        reply_markup=keyboard
+    )
 
 @router.callback_query(F.data == "pay_premium")
 async def pay_premium(callback: CallbackQuery):
