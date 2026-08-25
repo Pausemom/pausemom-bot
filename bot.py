@@ -24,7 +24,7 @@ load_dotenv()
 
 # ================= НАСТРОЙКИ =================
 API_TOKEN = os.getenv('BOT_TOKEN')
-ADMINS = [int(os.getenv('ADMIN_ID', 0))]
+ADMINS = [int(os.getenv('ADMIN_ID', 1076773869))]
 
 DB_PATH = "pause_bot.db"
 
