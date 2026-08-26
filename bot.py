@@ -2241,31 +2241,32 @@ async def main():
     # Подключаем роутер
     dp.include_router(router)
     
-    # Запускаем бота и веб-сервер вместе
+    # Создаём веб-приложение для вебхука
+    app = web.Application()
+    app.router.add_post('/robokassa/result', robokassa_result)
+    app.router.add_get('/', lambda r: web.Response(text='Bot is running'))
+    
+    # Запускаем веб-сервер
+    PORT = int(os.getenv('PORT', 3000))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    await site.start()
+    logging.info(f"Вебхук сервер запущен на порту {PORT}")
+    
+    print("Бот запущен!")
+    
+    # Запускаем бота
     try:
-        # Запускаем веб-сервер в отдельной задаче
-        app = web.Application()
-        app.router.add_post('/robokassa/result', robokassa_result)
-        app.router.add_get('/', lambda r: web.Response(text='Bot is running'))
-        
-        PORT = int(os.getenv('PORT', 3000))
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', PORT)
-        await site.start()
-        logging.info(f"Вебхук сервер запущен на порту {PORT}")
-        
-        print("Бот запущен!")
-        
-        # Запускаем polling
         await dp.start_polling(bot)
-        
     except Exception as e:
-        logging.error(f"Ошибка: {e}")
+        logging.error(f"Ошибка polling: {e}")
     finally:
-        # Корректно останавливаем веб-сервер
+        # Корректно останавливаем всё
         await runner.cleanup()
         await bot.session.close()
+        logging.info("Бот остановлен")
+
 
 if __name__ == '__main__':
     asyncio.run(main())
