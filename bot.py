@@ -1712,12 +1712,22 @@ async def support_menu(message: Message):
         reply_markup=keyboard
     )
 
+
 @router.callback_query(F.data.startswith('support_'))
 async def show_support_message(callback: CallbackQuery):
+    # Проверяем, не является ли callback "back_to_support"
+    if callback.data == "back_to_support":
+        await back_to_support(callback)
+        return
+    
     category = callback.data.replace('support_', '')
     message_data = get_support_message(category)
+    
+    if not message_data:
+        await callback.answer("Категория не найдена")
+        return
+    
     texts = message_data["texts"]
-
     user_id = callback.from_user.id
 
     if await is_premium(user_id):
@@ -1737,11 +1747,33 @@ async def show_support_message(callback: CallbackQuery):
     )
     await callback.answer()
 
+
 @router.callback_query(F.data == "back_to_support")
 async def back_to_support(callback: CallbackQuery):
-    await support_menu(callback.message)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👋 Первое знакомство", callback_data="support_welcome"),
+             InlineKeyboardButton(text="🌸 После SOS-паузы", callback_data="support_after_sos")],
+            [InlineKeyboardButton(text="🫂 После срыва", callback_data="support_after_cry"),
+             InlineKeyboardButton(text="🌙 Вечерняя поддержка", callback_data="support_evening")],
+            [InlineKeyboardButton(text="🌅 Утренняя поддержка", callback_data="support_morning"),
+             InlineKeyboardButton(text="👧 Для мам подростков", callback_data="support_teen")],
+            [InlineKeyboardButton(text="👩 Для мам взрослых детей", callback_data="support_adult"),
+             InlineKeyboardButton(text="🍼 Для мам в декрете", callback_data="support_baby")],
+            [InlineKeyboardButton(text="😴 Кто не выспался", callback_data="support_tired"),
+             InlineKeyboardButton(text="💔 Кто чувствует себя недостаточно хорошей", callback_data="support_not_enough")],
+            [InlineKeyboardButton(text="🫂 Кто устал от вины", callback_data="support_guilt"),
+             InlineKeyboardButton(text="🫂 Кто чувствует себя одинокой", callback_data="support_alone")],
+            [InlineKeyboardButton(text="💫 Кто чувствует себя разбитой или потерянной", callback_data="support_lost"),
+             InlineKeyboardButton(text="💝 Забота о себе", callback_data="support_self_care")]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        "💝 <b>Нужные слова для мамы</b>\n\nВыбери категорию, которая откликается тебе сейчас:",
+        reply_markup=keyboard
+    )
     await callback.answer()
-
 # ================= КНОПКА "ТЕХНИКИ ДЛЯ МАЛЫШЕЙ" (PREMIUM) =================
 @router.message(F.text == "🧸 Техники для малышей")
 async def kids_techniques_menu(message: Message):
@@ -1977,6 +2009,7 @@ async def premium_info(message: Message):
         reply_markup=keyboard
     )
 
+
 @router.callback_query(F.data == "pay_premium")
 async def pay_premium(callback: CallbackQuery):
     user_id = callback.from_user.id
@@ -1991,8 +2024,8 @@ async def pay_premium(callback: CallbackQuery):
 
     await callback.message.edit_text(
         "💎 <b>Оплата Premium</b>\n\n"
-        "Нажмите кнопку ниже для оплаты.\n"
-        "После оплаты Premium активируется автоматически.",
+        "Нажмите кнопку ниже, чтобы перейти на защищённую страницу оплаты Робокассы.\n"
+        "После оплаты вернитесь сюда и нажмите «Я оплатил(а)».",
         reply_markup=keyboard
     )
     await callback.answer()
@@ -2000,13 +2033,6 @@ async def pay_premium(callback: CallbackQuery):
     # Запускаем фоновую проверку
     asyncio.create_task(poll_payment(user_id, callback.message.chat.id, inv_id))
 
-    await callback.message.edit_text(
-        "💎 <b>Оплата Premium</b>\n\n"
-        "Нажмите кнопку ниже, чтобы перейти на защищённую страницу оплаты Робокассы.\n"
-        "После оплаты вернитесь сюда и нажмите «Я оплатил(а)».",
-        reply_markup=keyboard
-    )
-    await callback.answer()
 
 @router.callback_query(F.data == "check_premium_payment")
 async def check_premium_payment(callback: CallbackQuery):
@@ -2017,6 +2043,7 @@ async def check_premium_payment(callback: CallbackQuery):
     
     if not result or not result[0]:
         await callback.message.edit_text("❌ Платёж не найден.")
+        await callback.answer()
         return
 
     inv_id = result[0]
@@ -2027,8 +2054,19 @@ async def check_premium_payment(callback: CallbackQuery):
         await update_invoice_status(inv_id, 'paid')
         await callback.message.edit_text("✅ Платёж подтверждён! Premium активирован на 30 дней!")
     else:
-        await callback.message.edit_text("❌ Платёж ещё не поступил.")
+        await callback.message.edit_text("❌ Платёж ещё не поступил. Попробуйте позже или обратитесь в поддержку.")
+    
     await callback.answer()
+
+
+@router.callback_query(F.data == "payment_help")
+async def payment_help(callback: CallbackQuery):
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад к Premium", callback_data="back_to_premium")]
+        ]
+    )
+    
     await callback.message.edit_text(
         "❓ <b>Как оплатить Premium:</b>\n\n"
         "1️⃣ Нажмите «Оплатить» в разделе Premium.\n"
@@ -2039,19 +2077,44 @@ async def check_premium_payment(callback: CallbackQuery):
         "💡 Если возникли проблемы, напишите в поддержку: @PauseMomSupport_bot",
         reply_markup=keyboard
     )
+    await callback.answer()
+
 
 @router.callback_query(F.data == "back_to_premium")
 async def back_to_premium(callback: CallbackQuery):
-    await callback.message.delete()
-
-    class FakeMessage:
-        def __init__(self, user_id):
-            self.from_user = type('User', (), {'id': user_id})()
-        async def answer(self, text, reply_markup=None):
-            await callback.message.answer(text, reply_markup=reply_markup)
-
-    fake_msg = FakeMessage(callback.from_user.id)
-    await premium_info(fake_msg)
+    user_id = callback.from_user.id
+    
+    if await is_premium(user_id):
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
+            result = await cursor.fetchone()
+        if result and result[0]:
+            await callback.message.edit_text(
+                f"✅ <b>У тебя уже есть Premium!</b>\n\n"
+                f"📅 Действует до: {result[0]}\n\n"
+                "Пользуйся всеми функциями без ограничений."
+            )
+            await callback.answer()
+            return
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Оплатить", callback_data="pay_premium")],
+            [InlineKeyboardButton(text="❓ Как оплатить?", callback_data="payment_help")]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        "💎 <b>Premium — 999 ₽/мес</b>\n\n"
+        "✨ <b>Что ты получаешь:</b>\n"
+        "✅ Техники для малышей (1-12 лет)\n"
+        "✅ Модуль «Восстановление контакта»\n"
+        "✅ 100 аффирмаций поддержки\n"
+        "✅ Поддерживающие фразы на каждый день недели (7 фраз в каждой категории)\n\n"
+        "💳 Нажмите «Оплатить», чтобы перейти к оплате через Робокассу.",
+        reply_markup=keyboard
+    )
+    await callback.answer()
 
 # ================= ПОМОЩЬ =================
 @router.message(F.text == "📞 Помощь")
