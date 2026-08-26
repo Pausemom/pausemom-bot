@@ -2246,12 +2246,13 @@ async def main():
     app.router.add_post('/robokassa/result', robokassa_result)
     app.router.add_get('/', lambda r: web.Response(text='Bot is running'))
     
-    # Запускаем веб-сервер
+    # Запускаем веб-сервер на порту 8081 (или другом свободном)
+    PORT = int(os.getenv('PORT', 8081))  # Используйте 8081 или другой порт
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
-    logging.info("Вебхук сервер запущен на порту 8080")
+    logging.info(f"Вебхук сервер запущен на порту {PORT}")
     
     print("Бот запущен!")
     
